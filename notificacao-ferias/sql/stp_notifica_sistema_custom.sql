@@ -1,14 +1,14 @@
 /* ============================================================================
    STP_NOTIFICA_SISTEMA_CUSTOM
 
-   Procedure de notificação no sininho (TSIAVI) para o grupo do DP.
+   Procedure de notificação no sininho (SANKHYA.TSIAVI) para o grupo do DP.
 
    Diferenças em relação à procedure nativa STP_NOTIFICA_SISTEMA:
    - P_CODGRUPO removido da assinatura — código do grupo do DP está fixo
      na constante C_CODGRUPO_DP. Substituir pelo valor real do TSIGRU:
-         SELECT CODGRUPO, DESCRGRU FROM TSIGRU WHERE DESCRGRU LIKE '%DP%'
+         SELECT CODGRUPO, DESCRGRU FROM SANKHYA.TSIGRU WHERE DESCRGRU LIKE '%DP%'
    - P_IMPORTANCIA com DEFAULT 0 (Urgentíssimo) em vez de 3
-   - Coluna CODUSUREMENTI (grafia real da TSIAVI, confirmada no ambiente)
+   - Coluna CODUSUREMENTI (grafia real confirmada na SANKHYA.TSIAVI)
    ============================================================================ */
 
 CREATE OR REPLACE PROCEDURE STP_NOTIFICA_SISTEMA_CUSTOM(
@@ -18,13 +18,14 @@ CREATE OR REPLACE PROCEDURE STP_NOTIFICA_SISTEMA_CUSTOM(
     P_CODUSUREMETENTE NUMBER,
     P_IMPORTANCIA     NUMBER DEFAULT 0)
 AS
-    -- << Substituir pelo código real do grupo do DP (SELECT CODGRUPO FROM TSIGRU) >>
+    -- << Substituir pelo código real do grupo do DP >>
+    -- SELECT CODGRUPO, DESCRGRU FROM SANKHYA.TSIGRU WHERE DESCRGRU LIKE '%DP%'
     C_CODGRUPO_DP CONSTANT NUMBER := 123;
     V_NUAVISO     NUMBER;
 BEGIN
-    SELECT NVL(MAX(NUAVISO), 0) + 1 INTO V_NUAVISO FROM TSIAVI;
+    SELECT NVL(MAX(NUAVISO), 0) + 1 INTO V_NUAVISO FROM SANKHYA.TSIAVI;
 
-    INSERT INTO TSIAVI (
+    INSERT INTO SANKHYA.TSIAVI (
         NUAVISO,
         TITULO,
         DESCRICAO,
