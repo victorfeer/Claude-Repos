@@ -1,21 +1,8 @@
-/* ============================================================================
-   AlertaFeriasNotificacao.java
-
-   ESTADO: PRONTO PARA TESTE EM AMBIENTE SANKHYA.
-   Escopo: apenas notificação no sininho (TSIAVI). Sem envio de e-mail.
-
-   PENDÊNCIA ABERTA:
-   [P2] CODGRUPO_DP: preencher com o código real do grupo do DP.
-        Consultar: SELECT CODGRUPO, DESCRGRU FROM TSIGRU WHERE DESCRGRU LIKE '%DP%'
-
-   Interface confirmada em classe funcional do ambiente:
-     org.cuckoo.core.ScheduledAction  /  ScheduledActionContext
-   ============================================================================ */
-
 package br.com.voke.rh.ferias;
 
 import java.sql.ResultSet;
 import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -31,181 +18,180 @@ import br.com.sankhya.jape.core.JapeSession.SessionHandle;
 import br.com.sankhya.jape.dbproc.JdbcWrapper;
 import br.com.sankhya.jape.dbproc.NativeSql;
 
+/**
+ * Notifica o DP via sininho (TSIAVI) quando colaboradores entram na
+ * janela crítica de férias a vencer (90 dias de antecedência).
+ *
+ * Configurar DUAS Ações Agendadas no Sankhya apontando para esta classe,
+ * cada uma com o parâmetro "modo" diferente:
+ *   - Ação DIÁRIA  → modo=DIFF     (só quem é novo na janela)
+ *   - Ação MENSAL  → modo=COMPLETO (todos na janela, relatório)
+ *
+ * Pré-requisitos de banco:
+ *   1. VW_ALERTA_FERIAS_A_VENCER      (sql/vw_alerta_ferias_a_vencer.sql)
+ *   2. AD_FERIAS_NOTIFICADO           (sql/ad_ferias_notificado.sql)
+ *   3. STP_NOTIFICA_SISTEMA_CUSTOM    (sql/stp_notifica_sistema_custom.sql)
+ */
 public class AlertaFeriasNotificacao implements ScheduledAction {
 
-    // ------------------------------------------------------------------
-    // CONFIGURAÇÃO
-    // ------------------------------------------------------------------
-
-    /** TODO [2]: preencher com o código real do grupo do DP no Sankhya.
-     *  SELECT CODGRUPO, DESCRGRU FROM TSIGRU WHERE DESCRGRU LIKE '%DP%' */
-    private static final int CODGRUPO_DP = 0;
-
-    /** -1 = usuário "Sistema" (padrão Sankhya para avisos automáticos). */
-    private static final int CODUSU_REMETENTE_SISTEMA = -1;
+    private static final int IMPORTANCIA_URGENTISSIMO = 0;
+    private static final int CODUSU_SISTEMA = -1;
 
     // ------------------------------------------------------------------
-    // PONTO DE ENTRADA -- ScheduledAction (Ação Agendada)
-    //
-    // Configure DUAS Ações Agendadas separadas no Sankhya, apontando para
-    // esta mesma classe, passando o parâmetro "modo" em cada uma:
-    //   Ação A (diária)  → parâmetro modo=DIFF
-    //   Ação B (mensal)  → parâmetro modo=COMPLETO
+    // PONTO DE ENTRADA
+    // O parâmetro "modo" é configurado em cada Ação Agendada no Sankhya.
     // ------------------------------------------------------------------
     @Override
     public void execute(ScheduledActionContext ctx) throws Exception {
-        String modoExecucao = ctx.getParameter("modo") != null
+        String modo = ctx.getParameter("modo") != null
                 ? ctx.getParameter("modo").toString()
                 : "DIFF";
-        executarRotina(modoExecucao);
+        executarRotina(modo);
     }
 
-    private void executarRotina(String modoExecucao) {
-        log("=== Iniciando AlertaFeriasNotificacao modo=" + modoExecucao + " ===");
+    private void executarRotina(String modo) {
+        log("=== Iniciando modo=" + modo + " ===");
 
-        List<FuncionarioAlerta> linhas = buscarAlertas();
-        log("Funcionários na janela (antes da deduplicação): " + linhas.size());
+        List<FuncionarioAlerta> todos = buscarAlertas();
+        log("Na janela (bruto): " + todos.size());
 
-        List<FuncionarioAlerta> porFuncionario = agruparPorFuncionario(linhas);
-        log("Após deduplicação por funcionário: " + porFuncionario.size());
+        List<FuncionarioAlerta> deduplicados = agruparPorFuncionario(todos);
+        log("Após deduplicação: " + deduplicados.size());
 
-        List<FuncionarioAlerta> alertasParaNotificar;
-        if ("COMPLETO".equals(modoExecucao)) {
-            alertasParaNotificar = porFuncionario;
+        List<FuncionarioAlerta> aNotificar;
+        if ("COMPLETO".equals(modo)) {
+            aNotificar = deduplicados;
         } else {
-            alertasParaNotificar = filtrarAindaNaoNotificados(porFuncionario);
-            log("Novos a notificar (modo DIFF): " + alertasParaNotificar.size());
+            aNotificar = filtrarNaoNotificados(deduplicados);
+            log("Novos (DIFF): " + aNotificar.size());
         }
 
-        if (alertasParaNotificar.isEmpty()) {
-            log("Nenhum novo alerta para enviar. Encerrando.");
+        if (aNotificar.isEmpty()) {
+            log("Nenhum novo alerta. Encerrando.");
             return;
         }
 
-        String tituloAviso = "COMPLETO".equals(modoExecucao)
-                ? "Férias a vencer (relatório mensal)"
-                : "Férias a vencer";
+        String titulo = "COMPLETO".equals(modo)
+                ? "Férias a vencer — relatório mensal"
+                : "Férias a vencer — novo alerta";
 
-        int sinosEnviados = 0;
-        for (FuncionarioAlerta item : alertasParaNotificar) {
-            String descricaoAviso = montarDescricaoAviso(item);
-            enviarNotificacaoSino(tituloAviso, descricaoAviso);
-            sinosEnviados++;
+        for (FuncionarioAlerta f : aNotificar) {
+            notificarSino(titulo, montarDescricao(f));
         }
-        log("Sinosisses enviados: " + sinosEnviados);
+        log("Sinos enviados: " + aNotificar.size());
 
-        if (!"COMPLETO".equals(modoExecucao)) {
-            registrarComoNotificados(alertasParaNotificar);
-            log("Registrados em AD_FERIAS_NOTIFICADO: " + alertasParaNotificar.size());
+        if (!"COMPLETO".equals(modo)) {
+            registrarNotificados(aNotificar);
+            log("Registrados em AD_FERIAS_NOTIFICADO: " + aNotificar.size());
         }
 
-        log("=== AlertaFeriasNotificacao concluído ===");
+        log("=== Concluído ===");
     }
 
     // ------------------------------------------------------------------
     // DTO
     // ------------------------------------------------------------------
-    public static class FuncionarioAlerta {
-        public int codEmp;
-        public int codFunc;
-        public int sequencia;
-        public String nomeFunc;
-        public String descrDep;
-        public String razaoSocial;
-        public Timestamp limGozo;
-        public long diasParaVencer;
+    private static class FuncionarioAlerta {
+        int       codEmp;
+        int       codFunc;
+        int       sequencia;
+        String    nomeFunc;
+        String    descrDep;
+        String    razaoSocial;
+        Timestamp limGozo;
+        long      diasParaVencer;
     }
 
     // ------------------------------------------------------------------
     // BUSCA
     // ------------------------------------------------------------------
     private List<FuncionarioAlerta> buscarAlertas() {
-        List<FuncionarioAlerta> resultado = new ArrayList<FuncionarioAlerta>();
+        List<FuncionarioAlerta> lista = new ArrayList<FuncionarioAlerta>();
 
-        String sql = "SELECT CODEMP, CODFUNC, SEQUENCIA, NOMEFUNC, DESCRDEP, RAZAOSOCIAL, LIMGOZO, "
+        String sql = "SELECT CODEMP, CODFUNC, SEQUENCIA, NOMEFUNC, DESCRDEP, "
+                   + "       RAZAOSOCIAL, LIMGOZO, "
                    + "       (LIMGOZO - TRUNC(SYSDATE)) AS DIAS_PARA_VENCER "
                    + "FROM VW_ALERTA_FERIAS_A_VENCER";
 
-        SessionHandle session = JapeSession.open();
+        SessionHandle sessao = JapeSession.open();
         try {
-            ResultSet rs = NativeSql.queryNative(session, sql).getResultSet();
+            ResultSet rs = NativeSql.queryNative(sessao, sql).getResultSet();
             while (rs.next()) {
-                FuncionarioAlerta item = new FuncionarioAlerta();
-                item.codEmp        = rs.getInt("CODEMP");
-                item.codFunc       = rs.getInt("CODFUNC");
-                item.sequencia     = rs.getInt("SEQUENCIA");
-                item.nomeFunc      = rs.getString("NOMEFUNC");
-                item.descrDep      = rs.getString("DESCRDEP");
-                item.razaoSocial   = rs.getString("RAZAOSOCIAL");
-                item.limGozo       = rs.getTimestamp("LIMGOZO");
-                item.diasParaVencer = rs.getLong("DIAS_PARA_VENCER");
-                resultado.add(item);
+                FuncionarioAlerta f = new FuncionarioAlerta();
+                f.codEmp         = rs.getInt("CODEMP");
+                f.codFunc        = rs.getInt("CODFUNC");
+                f.sequencia      = rs.getInt("SEQUENCIA");
+                f.nomeFunc       = rs.getString("NOMEFUNC");
+                f.descrDep       = rs.getString("DESCRDEP");
+                f.razaoSocial    = rs.getString("RAZAOSOCIAL");
+                f.limGozo        = rs.getTimestamp("LIMGOZO");
+                f.diasParaVencer = rs.getLong("DIAS_PARA_VENCER");
+                lista.add(f);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Falha ao consultar VW_ALERTA_FERIAS_A_VENCER", e);
+            throw new RuntimeException("Erro ao consultar VW_ALERTA_FERIAS_A_VENCER", e);
         } finally {
-            session.close();
+            sessao.close();
         }
 
-        return resultado;
+        return lista;
     }
 
     // ------------------------------------------------------------------
-    // DEDUPLICAÇÃO -- mantém só o período mais urgente por funcionário
+    // DEDUPLICAÇÃO
+    // Mantém só o período mais urgente por funcionário.
     // ------------------------------------------------------------------
-    private List<FuncionarioAlerta> agruparPorFuncionario(List<FuncionarioAlerta> linhas) {
-        Map<String, FuncionarioAlerta> porChave = new LinkedHashMap<String, FuncionarioAlerta>();
+    private List<FuncionarioAlerta> agruparPorFuncionario(List<FuncionarioAlerta> lista) {
+        Map<String, FuncionarioAlerta> mapa = new LinkedHashMap<String, FuncionarioAlerta>();
 
-        for (FuncionarioAlerta item : linhas) {
-            String chave = item.codEmp + "-" + item.codFunc;
-            FuncionarioAlerta existente = porChave.get(chave);
-            if (existente == null || item.diasParaVencer < existente.diasParaVencer) {
-                porChave.put(chave, item);
+        for (FuncionarioAlerta f : lista) {
+            String chave = f.codEmp + "-" + f.codFunc;
+            FuncionarioAlerta atual = mapa.get(chave);
+            if (atual == null || f.diasParaVencer < atual.diasParaVencer) {
+                mapa.put(chave, f);
             }
         }
 
-        return new ArrayList<FuncionarioAlerta>(porChave.values());
+        return new ArrayList<FuncionarioAlerta>(mapa.values());
     }
 
     // ------------------------------------------------------------------
-    // FILTRO DIFF -- exclui quem já foi notificado para o mesmo período
+    // FILTRO DIFF
     // ------------------------------------------------------------------
-    private List<FuncionarioAlerta> filtrarAindaNaoNotificados(List<FuncionarioAlerta> itens) {
-        if (itens.isEmpty()) {
-            return itens;
-        }
+    private List<FuncionarioAlerta> filtrarNaoNotificados(List<FuncionarioAlerta> lista) {
+        if (lista.isEmpty()) return lista;
 
         Set<String> jaNotificados = new HashSet<String>();
         String sql = "SELECT CODEMP, CODFUNC, SEQUENCIA FROM AD_FERIAS_NOTIFICADO";
 
-        SessionHandle session = JapeSession.open();
+        SessionHandle sessao = JapeSession.open();
         try {
-            ResultSet rs = NativeSql.queryNative(session, sql).getResultSet();
+            ResultSet rs = NativeSql.queryNative(sessao, sql).getResultSet();
             while (rs.next()) {
-                String chave = rs.getInt("CODEMP") + "-" + rs.getInt("CODFUNC") + "-" + rs.getInt("SEQUENCIA");
-                jaNotificados.add(chave);
+                jaNotificados.add(
+                    rs.getInt("CODEMP") + "-" + rs.getInt("CODFUNC") + "-" + rs.getInt("SEQUENCIA")
+                );
             }
         } catch (Exception e) {
-            throw new RuntimeException("Falha ao consultar AD_FERIAS_NOTIFICADO", e);
+            throw new RuntimeException("Erro ao consultar AD_FERIAS_NOTIFICADO", e);
         } finally {
-            session.close();
+            sessao.close();
         }
 
         List<FuncionarioAlerta> novos = new ArrayList<FuncionarioAlerta>();
-        for (FuncionarioAlerta item : itens) {
-            String chave = item.codEmp + "-" + item.codFunc + "-" + item.sequencia;
-            if (!jaNotificados.contains(chave)) {
-                novos.add(item);
+        for (FuncionarioAlerta f : lista) {
+            if (!jaNotificados.contains(f.codEmp + "-" + f.codFunc + "-" + f.sequencia)) {
+                novos.add(f);
             }
         }
         return novos;
     }
 
     // ------------------------------------------------------------------
-    // REGISTRO -- grava quem foi notificado (modo DIFF)
-    // WHERE NOT EXISTS garante idempotência se a rotina rodar duas vezes
+    // REGISTRO (modo DIFF)
+    // WHERE NOT EXISTS garante idempotência.
     // ------------------------------------------------------------------
-    private void registrarComoNotificados(List<FuncionarioAlerta> itens) {
+    private void registrarNotificados(List<FuncionarioAlerta> lista) {
         String sql = "INSERT INTO AD_FERIAS_NOTIFICADO (CODEMP, CODFUNC, SEQUENCIA, DTNOTIFICACAO) "
                    + "SELECT ?, ?, ?, SYSDATE FROM DUAL "
                    + "WHERE NOT EXISTS ("
@@ -213,56 +199,54 @@ public class AlertaFeriasNotificacao implements ScheduledAction {
                    + "  WHERE CODEMP = ? AND CODFUNC = ? AND SEQUENCIA = ?"
                    + ")";
 
-        SessionHandle session = JapeSession.open();
+        SessionHandle sessao = JapeSession.open();
         try {
-            for (FuncionarioAlerta item : itens) {
-                JdbcWrapper.executeNative(session, sql,
-                        item.codEmp, item.codFunc, item.sequencia,
-                        item.codEmp, item.codFunc, item.sequencia);
+            for (FuncionarioAlerta f : lista) {
+                JdbcWrapper.executeNative(sessao, sql,
+                        f.codEmp, f.codFunc, f.sequencia,
+                        f.codEmp, f.codFunc, f.sequencia);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Falha ao registrar em AD_FERIAS_NOTIFICADO", e);
+            throw new RuntimeException("Erro ao registrar em AD_FERIAS_NOTIFICADO", e);
         } finally {
-            session.close();
+            sessao.close();
         }
     }
 
     // ------------------------------------------------------------------
-    // MONTAGEM -- sininho (um por colaborador)
+    // SININHO — chama STP_NOTIFICA_SISTEMA_CUSTOM
+    // P_CODGRUPO não é passado pelo Java — a procedure tem o código fixo.
     // ------------------------------------------------------------------
-    private String montarDescricaoAviso(FuncionarioAlerta item) {
-        return formatarLinhaColaborador(item);
-    }
-
-    private String formatarLinhaColaborador(FuncionarioAlerta item) {
-        return item.nomeFunc
-                + " (" + item.razaoSocial + " - " + item.descrDep + ")"
-                + " - férias vencem em " + item.diasParaVencer + " dia(s)"
-                + " (venc. " + item.limGozo + ")";
-    }
-
-    // ------------------------------------------------------------------
-    // ENVIO DE SININHO -- via STP_NOTIFICA_SISTEMA_CUSTOM
-    // ------------------------------------------------------------------
-    private void enviarNotificacaoSino(String titulo, String descricao) {
+    private void notificarSino(String titulo, String descricao) {
         String sql = "BEGIN STP_NOTIFICA_SISTEMA_CUSTOM("
-                   + "P_TITULO => ?, P_DESCRICAO => ?, P_CODUSU => NULL, "
-                   + "P_CODGRUPO => ?, P_CODUSUREMETENTE => ?, P_IMPORTANCIA => 0); END;";
+                   + "  P_TITULO          => ?, "
+                   + "  P_DESCRICAO       => ?, "
+                   + "  P_CODUSU          => NULL, "
+                   + "  P_CODUSUREMETENTE => ?, "
+                   + "  P_IMPORTANCIA     => ?); END;";
 
-        SessionHandle session = JapeSession.open();
+        SessionHandle sessao = JapeSession.open();
         try {
-            JdbcWrapper.executeNative(session, sql,
-                    titulo, descricao, CODGRUPO_DP, CODUSU_REMETENTE_SISTEMA);
+            JdbcWrapper.executeNative(sessao, sql,
+                    titulo, descricao, CODUSU_SISTEMA, IMPORTANCIA_URGENTISSIMO);
         } catch (Exception e) {
-            throw new RuntimeException("Falha ao notificar sininho: " + descricao, e);
+            throw new RuntimeException("Erro ao enviar sininho: " + descricao, e);
         } finally {
-            session.close();
+            sessao.close();
         }
     }
 
     // ------------------------------------------------------------------
-    // LOG -- imprime no console do Sankhya (visível nos logs da JVM)
+    // FORMATAÇÃO
     // ------------------------------------------------------------------
+    private String montarDescricao(FuncionarioAlerta f) {
+        String dataFormatada = new SimpleDateFormat("dd/MM/yyyy").format(f.limGozo);
+        return f.nomeFunc
+             + " (" + f.razaoSocial + " — " + f.descrDep + ")"
+             + " | Férias vencem em " + f.diasParaVencer + " dia(s)"
+             + " (limite: " + dataFormatada + ")";
+    }
+
     private void log(String msg) {
         System.out.println("[AlertaFerias] " + msg);
     }
