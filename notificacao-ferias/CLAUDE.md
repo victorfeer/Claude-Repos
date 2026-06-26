@@ -42,17 +42,17 @@ confirmada com certeza. Ao trabalhar neste arquivo:
   reais de produção, não apenas estilo de código. Não remova os comentários
   de incerteza ao refatorar — eles são a memória do que falta validar.
 
-## As 3 pendências técnicas (nenhuma resolvida ainda)
+## Pendências técnicas
 
-1. **Assinatura real da interface `ScheduledAction`** (pacote `Cuckoo.jar`)
-   — não é documentada publicamente. Só se descobre abrindo o jar no
-   ambiente real do cliente (ver `docs/pendencias.md` para o comando).
-2. **Mecanismo real de envio de e-mail fora do contexto de botão** — o
-   recurso de e-mail documentado do Sankhya está amarrado a `AcaoRotinaJava`
-   (botão), não a `ScheduledAction` (rotina agendada). Ainda não confirmado
-   o equivalente para rotina agendada pura.
+1. ~~**Assinatura real da interface `ScheduledAction`**~~ — **RESOLVIDA**.
+   Interface confirmada em classe funcional do ambiente:
+   `org.cuckoo.core.ScheduledAction` / `ScheduledActionContext`.
+   Método de entrada: `execute(ScheduledActionContext ctx)`.
+2. ~~**Mecanismo real de envio de e-mail**~~ — **DESCARTADA**.
+   Decisão do cliente: apenas notificação no sininho, sem e-mail.
 3. **`CODGRUPO_DP`** — código do grupo de key users do DP cadastrado no
    Sankhya. Placeholder em `0` no código.
+   Consultar: `SELECT CODGRUPO, DESCRGRU FROM TSIGRU WHERE DESCRGRU LIKE '%DP%'`
 
 Não implemente soluções definitivas para essas 3 pendências sem confirmação
 explícita do usuário — são bloqueios de ambiente real, não de lógica de

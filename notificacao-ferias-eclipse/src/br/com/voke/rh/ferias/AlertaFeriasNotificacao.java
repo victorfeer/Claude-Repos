@@ -4,15 +4,12 @@
    ESTADO: PRONTO PARA TESTE EM AMBIENTE SANKHYA.
    Escopo: apenas notificação no sininho (TSIAVI). Sem envio de e-mail.
 
-   ANTES DE SUBIR NO SANKHYA, resolver as 2 pendências abaixo:
+   PENDÊNCIA ABERTA:
+   [P2] CODGRUPO_DP: preencher com o código real do grupo do DP.
+        Consultar: SELECT CODGRUPO, DESCRGRU FROM TSIGRU WHERE DESCRGRU LIKE '%DP%'
 
-   [1] ASSINATURA ScheduledAction: descomente o bloco "OPÇÃO A" ou "OPÇÃO B"
-       conforme o resultado de:
-           javap <caminho>/Cuckoo.jar!/br/com/sankhya/scheduler/ScheduledAction.class
-       Deixe comentado o bloco que não for usado.
-
-   [2] CODGRUPO_DP: preencher com o código real do grupo do DP.
-       Consultar: SELECT CODGRUPO, DESCRGRU FROM TSIGRU WHERE DESCRGRU LIKE '%DP%'
+   Interface confirmada em classe funcional do ambiente:
+     org.cuckoo.core.ScheduledAction  /  ScheduledActionContext
    ============================================================================ */
 
 package br.com.voke.rh.ferias;
@@ -26,28 +23,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-// TODO [1] -- descomente o bloco correto após inspecionar o Cuckoo.jar:
-//
-// OPÇÃO A (assinatura mais comum em versões antigas do Sankhya):
-// import br.com.sankhya.scheduler.ScheduledAction;
-// import br.com.sankhya.scheduler.SchedulerContext;
-//
-// OPÇÃO B (assinatura encontrada em algumas versões mais recentes):
-// import br.com.sankhya.actionbutton.ContextoAcao;
+import org.cuckoo.core.ScheduledAction;
+import org.cuckoo.core.ScheduledActionContext;
 
 import br.com.sankhya.jape.core.JapeSession;
 import br.com.sankhya.jape.core.JapeSession.SessionHandle;
 import br.com.sankhya.jape.dbproc.JdbcWrapper;
 import br.com.sankhya.jape.dbproc.NativeSql;
 
-// TODO [1] -- descomente a assinatura correta e remova esta linha de declaração:
-public class AlertaFeriasNotificacao {
-
-// OPÇÃO A:
-// public class AlertaFeriasNotificacao implements br.com.sankhya.scheduler.ScheduledAction {
-
-// OPÇÃO B:
-// public class AlertaFeriasNotificacao implements br.com.sankhya.actionbutton.AcaoRotinaJava {
+public class AlertaFeriasNotificacao implements ScheduledAction {
 
     // ------------------------------------------------------------------
     // CONFIGURAÇÃO
@@ -64,15 +48,19 @@ public class AlertaFeriasNotificacao {
     // PONTO DE ENTRADA -- ScheduledAction (Ação Agendada)
     //
     // Configure DUAS Ações Agendadas separadas no Sankhya, apontando para
-    // esta mesma classe, com parâmetros diferentes:
-    //   Ação A (diária)  → chama executarRotina("DIFF")
-    //   Ação B (mensal)  → chama executarRotina("COMPLETO")
-    //
-    // TODO [1]: quando a assinatura real for confirmada, substituir este
-    // método pelo método da interface (ex: execute, run, onSchedule...).
-    // O parâmetro modoExecucao deve vir do contexto da Ação Agendada.
+    // esta mesma classe, passando o parâmetro "modo" em cada uma:
+    //   Ação A (diária)  → parâmetro modo=DIFF
+    //   Ação B (mensal)  → parâmetro modo=COMPLETO
     // ------------------------------------------------------------------
-    public void executarRotina(String modoExecucao) {
+    @Override
+    public void execute(ScheduledActionContext ctx) throws Exception {
+        String modoExecucao = ctx.getParameter("modo") != null
+                ? ctx.getParameter("modo").toString()
+                : "DIFF";
+        executarRotina(modoExecucao);
+    }
+
+    private void executarRotina(String modoExecucao) {
         log("=== Iniciando AlertaFeriasNotificacao modo=" + modoExecucao + " ===");
 
         List<FuncionarioAlerta> linhas = buscarAlertas();
