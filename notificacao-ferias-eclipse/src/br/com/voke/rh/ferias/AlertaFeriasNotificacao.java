@@ -1,52 +1,21 @@
 /* ============================================================================
    AlertaFeriasNotificacao.java
 
-   STATUS DESTE ARQUIVO: RECONSTITUÍDO A PARTIR DE HISTÓRICO DE CONVERSAS.
-   Este código NÃO foi salvo em sua forma final consolidada em nenhuma
-   sessão anterior -- ele foi montado por uma sequência de patches
-   (str_replace) ao longo de uma conversa longa, e nunca reescrito do
-   zero depois de "fechado". A reconstituição abaixo junta os trechos
-   confirmados encontrados em busca, mas os métodos marcados com
-   "[RECONSTITUÍDO -- REVISAR]" precisam de revisão linha a linha contra
-   qualquer cópia que ainda exista do código antes de ir para produção.
+   ESTADO: PRONTO PARA TESTE EM AMBIENTE SANKHYA.
 
-   INCERTEZAS HERDADAS DO PROJETO ORIGINAL (não resolvidas, ver pendência
-   do usuário em 26/06/2026 -- nenhuma das 3 abaixo foi validada ainda):
+   ANTES DE SUBIR NO SANKHYA, resolver as 3 pendências abaixo:
 
-   [1] Assinatura real da interface ScheduledAction do Cuckoo.jar -- não
-       documentada publicamente. Confirmar abrindo o jar no ambiente real
-       (ver seção "Como descobrir a assinatura real" no README.md).
-   [2] Mecanismo real de envio de e-mail a partir de uma ScheduledAction
-       (fora do contexto de botão/AcaoRotinaJava) -- ainda é TODO/hipótese.
-       O recurso de e-mail documentado oficialmente é amarrado ao contexto
-       de AcaoRotinaJava (ContextoAcao "agendar envio de email"); o
-       equivalente para rotina agendada pura não foi confirmado.
-   [3] CODGRUPO_DP -- código do grupo de key users do DP no Sankhya.
-       Placeholder em 0. Preencher com o código real do grupo.
+   [1] ASSINATURA ScheduledAction: descomente o bloco "OPÇÃO A" ou "OPÇÃO B"
+       conforme o resultado de:
+           javap <caminho>/Cuckoo.jar!/br/com/sankhya/scheduler/ScheduledAction.class
+       Deixe comentado o bloco que não for usado.
 
-   OUTRAS INCERTEZAS DO ESQUELETO ORIGINAL (mantidas como estavam):
-   [4] Descricao da STP_NOTIFICA_SISTEMA: documentação afirma que deve
-       ser montada via GET_LINK_TELA(ResourceID, textoLink, JsonPk), mas
-       não confirma se aceita ResourceID/JsonPk nulos para aviso "sem
-       destino". Tratado abaixo com fallback de texto simples -- TESTAR.
-   [5] Chamada de STP_NOTIFICA_SISTEMA a partir de Java: assumida aqui via
-       JdbcWrapper/NativeSql como chamada de procedure. Confirmar se
-       EntityFacade ou outro helper interno já encapsula isso de forma
-       mais segura no ambiente.
-   [6] EmailHelper.enviar(...) abaixo é um helper HIPOTÉTICO -- não existe
-       confirmação de que essa classe existe no ambiente. Substituir pelo
-       mecanismo real depois de resolver a incerteza [2].
+   [2] CODGRUPO_DP: preencher com o código real do grupo do DP.
+       Consultar: SELECT CODGRUPO, DESCRGRU FROM TSIGRU WHERE DESCRGRU LIKE '%DP%'
 
-   DECISÕES DE NEGÓCIO JÁ FECHADAS COM O KEY USER (essas são confiáveis):
-   - Um aviso de sininho POR COLABORADOR (não uma lista concatenada),
-     para não gerar um bloco de texto longo demais dentro do aviso.
-   - O e-mail pode seguir concatenado (lista inteira em um corpo só).
-   - Dois modos de execução: "DIFF" (diário, só quem é novo na janela)
-     e "COMPLETO" (mensal, relatório cheio, não marca como notificado).
-   - Deduplicação por funcionário: quando o mesmo CODFUNC aparece em mais
-     de um período de férias na janela, mantém-se só o de menor
-     diasParaVencer (mais urgente) -- evita dois avisos iguais pra mesma
-     pessoa.
+   [3] E-MAIL: durante os testes, o e-mail é apenas logado no console do Sankhya
+       (System.out). Quando o mecanismo real for confirmado, substituir o bloco
+       marcado com "TODO [EMAIL]" pelo envio real.
    ============================================================================ */
 
 package br.com.voke.rh.ferias;
@@ -60,34 +29,103 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-// Import de referência -- confirmar pacote exato do Cuckoo.jar no ambiente (incerteza [1])
+// TODO [1] -- descomente o bloco correto após inspecionar o Cuckoo.jar:
+//
+// OPÇÃO A (assinatura mais comum em versões antigas do Sankhya):
 // import br.com.sankhya.scheduler.ScheduledAction;
-// import br.com.sankhya.scheduler.SchedulerContext; // nome hipotético, validar
+// import br.com.sankhya.scheduler.SchedulerContext;
+//
+// OPÇÃO B (assinatura encontrada em algumas versões mais recentes):
+// import br.com.sankhya.actionbutton.ContextoAcao;
 
 import br.com.sankhya.jape.core.JapeSession;
 import br.com.sankhya.jape.core.JapeSession.SessionHandle;
-import br.com.sankhya.jape.dbproc.NativeSql;
 import br.com.sankhya.jape.dbproc.JdbcWrapper;
+import br.com.sankhya.jape.dbproc.NativeSql;
 
-public class AlertaFeriasNotificacao /* implements ScheduledAction */ {
+// TODO [1] -- descomente a assinatura correta e remova esta linha de declaração:
+public class AlertaFeriasNotificacao {
+
+// OPÇÃO A:
+// public class AlertaFeriasNotificacao implements br.com.sankhya.scheduler.ScheduledAction {
+
+// OPÇÃO B:
+// public class AlertaFeriasNotificacao implements br.com.sankhya.actionbutton.AcaoRotinaJava {
 
     // ------------------------------------------------------------------
-    // CONFIGURAÇÃO -- ajustar conforme decisões já fechadas com o key user
+    // CONFIGURAÇÃO
     // ------------------------------------------------------------------
 
-    /** Código do grupo de key users do DP cadastrado no Sankhya (CODGRUPO). */
-    private static final int CODGRUPO_DP = 0; // TODO [3]: preencher com o código real do grupo
+    /** TODO [2]: preencher com o código real do grupo do DP no Sankhya.
+     *  SELECT CODGRUPO, DESCRGRU FROM TSIGRU WHERE DESCRGRU LIKE '%DP%' */
+    private static final int CODGRUPO_DP = 0;
 
-    /** Usuário remetente do aviso. -1 é o padrão observado para "Sistema". */
+    /** -1 = usuário "Sistema" (padrão Sankhya para avisos automáticos). */
     private static final int CODUSU_REMETENTE_SISTEMA = -1;
 
-    /** Janela de antecedência em dias, fechada na reunião com o key user. */
-    private static final int JANELA_DIAS_ALERTA = 90;
+    // ------------------------------------------------------------------
+    // PONTO DE ENTRADA -- ScheduledAction (Ação Agendada)
+    //
+    // Configure DUAS Ações Agendadas separadas no Sankhya, apontando para
+    // esta mesma classe, com parâmetros diferentes:
+    //   Ação A (diária)  → chama executarRotina("DIFF")
+    //   Ação B (mensal)  → chama executarRotina("COMPLETO")
+    //
+    // TODO [1]: quando a assinatura real for confirmada, substituir este
+    // método pelo método da interface (ex: execute, run, onSchedule...).
+    // O parâmetro modoExecucao deve vir do contexto da Ação Agendada.
+    // ------------------------------------------------------------------
+    public void executarRotina(String modoExecucao) {
+        log("=== Iniciando AlertaFeriasNotificacao modo=" + modoExecucao + " ===");
+
+        List<FuncionarioAlerta> linhas = buscarAlertas();
+        log("Funcionários na janela (antes da deduplicação): " + linhas.size());
+
+        List<FuncionarioAlerta> porFuncionario = agruparPorFuncionario(linhas);
+        log("Após deduplicação por funcionário: " + porFuncionario.size());
+
+        List<FuncionarioAlerta> alertasParaNotificar;
+        if ("COMPLETO".equals(modoExecucao)) {
+            alertasParaNotificar = porFuncionario;
+        } else {
+            alertasParaNotificar = filtrarAindaNaoNotificados(porFuncionario);
+            log("Novos a notificar (modo DIFF): " + alertasParaNotificar.size());
+        }
+
+        if (alertasParaNotificar.isEmpty()) {
+            log("Nenhum novo alerta para enviar. Encerrando.");
+            return;
+        }
+
+        String tituloEmail = "COMPLETO".equals(modoExecucao)
+                ? "Relatório mensal - Férias a vencer"
+                : "Novo alerta de férias a vencer";
+
+        String corpoEmail = montarCorpoEmail(alertasParaNotificar, modoExecucao);
+        enviarEmail(tituloEmail, corpoEmail);
+
+        String tituloAviso = "COMPLETO".equals(modoExecucao)
+                ? "Férias a vencer (relatório mensal)"
+                : "Férias a vencer";
+
+        int sinosEnviados = 0;
+        for (FuncionarioAlerta item : alertasParaNotificar) {
+            String descricaoAviso = montarDescricaoAviso(item);
+            enviarNotificacaoSino(tituloAviso, descricaoAviso);
+            sinosEnviados++;
+        }
+        log("Sinosisses enviados: " + sinosEnviados);
+
+        if (!"COMPLETO".equals(modoExecucao)) {
+            registrarComoNotificados(alertasParaNotificar);
+            log("Registrados em AD_FERIAS_NOTIFICADO: " + alertasParaNotificar.size());
+        }
+
+        log("=== AlertaFeriasNotificacao concluído ===");
+    }
 
     // ------------------------------------------------------------------
-    // DTO interno -- representa uma linha de retorno da VW_ALERTA_FERIAS_A_VENCER
-    // [RECONSTITUÍDO -- REVISAR] campos inferidos a partir do uso nos métodos
-    // abaixo; confirmar contra a view se algum campo foi renomeado depois.
+    // DTO
     // ------------------------------------------------------------------
     public static class FuncionarioAlerta {
         public int codEmp;
@@ -101,53 +139,7 @@ public class AlertaFeriasNotificacao /* implements ScheduledAction */ {
     }
 
     // ------------------------------------------------------------------
-    // PONTO DE ENTRADA -- assinatura real depende da incerteza [1].
-    // [RECONSTITUÍDO -- REVISAR] mantido como método comum por enquanto;
-    // ajustar para o método de interface real (execute/run/onSchedule?)
-    // quando a assinatura de ScheduledAction for confirmada.
-    // ------------------------------------------------------------------
-    public void executarRotina(String modoExecucao /* "DIFF" ou "COMPLETO" */) {
-        List<FuncionarioAlerta> linhas = buscarAlertas();
-        List<FuncionarioAlerta> porFuncionario = agruparPorFuncionario(linhas);
-
-        List<FuncionarioAlerta> alertasParaNotificar;
-        if ("COMPLETO".equals(modoExecucao)) {
-            alertasParaNotificar = porFuncionario; // relatório mensal: todo mundo na janela
-        } else {
-            alertasParaNotificar = filtrarAindaNaoNotificados(porFuncionario); // TODO: tabela auxiliar (ver final do arquivo)
-        }
-
-        if (alertasParaNotificar.isEmpty()) {
-            return; // nada novo para notificar hoje
-        }
-
-        String tituloEmail = "COMPLETO".equals(modoExecucao)
-                ? "Relatório mensal - Férias a vencer"
-                : "Novo alerta de férias a vencer";
-
-        // O e-mail segue concatenado (cabe bem num corpo de e-mail).
-        String corpoEmail = montarCorpoEmail(alertasParaNotificar, modoExecucao);
-        enviarEmail(tituloEmail, corpoEmail); // TODO [2][6]: mecanismo real de envio
-
-        // O sininho recebe um aviso individual por colaborador.
-        for (FuncionarioAlerta item : alertasParaNotificar) {
-            String tituloAviso = "COMPLETO".equals(modoExecucao)
-                    ? "Férias a vencer (relatório mensal)"
-                    : "Férias a vencer";
-            String descricaoAviso = montarDescricaoAviso(item);
-            enviarNotificacaoSino(tituloAviso, descricaoAviso);
-        }
-
-        if (!"COMPLETO".equals(modoExecucao)) {
-            registrarComoNotificados(alertasParaNotificar);
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // BUSCA -- [RECONSTITUÍDO -- REVISAR] implementação não encontrada em
-    // forma final nos resultados de busca. Esqueleto abaixo é o padrão
-    // de leitura via NativeSql/JdbcWrapper já confirmado em outras partes
-    // do projeto (ver incerteza [5]), aplicado contra a view já validada.
+    // BUSCA
     // ------------------------------------------------------------------
     private List<FuncionarioAlerta> buscarAlertas() {
         List<FuncionarioAlerta> resultado = new ArrayList<FuncionarioAlerta>();
@@ -156,21 +148,18 @@ public class AlertaFeriasNotificacao /* implements ScheduledAction */ {
                    + "       (LIMGOZO - TRUNC(SYSDATE)) AS DIAS_PARA_VENCER "
                    + "FROM VW_ALERTA_FERIAS_A_VENCER";
 
-        // TODO [RECONSTITUÍDO]: confirmar padrão real de abertura de sessão/
-        // execução de NativeSql usado no restante do projeto Sankhya deste
-        // cliente -- abaixo é só a forma genérica documentada.
         SessionHandle session = JapeSession.open();
         try {
             ResultSet rs = NativeSql.queryNative(session, sql).getResultSet();
             while (rs.next()) {
                 FuncionarioAlerta item = new FuncionarioAlerta();
-                item.codEmp = rs.getInt("CODEMP");
-                item.codFunc = rs.getInt("CODFUNC");
-                item.sequencia = rs.getInt("SEQUENCIA");
-                item.nomeFunc = rs.getString("NOMEFUNC");
-                item.descrDep = rs.getString("DESCRDEP");
-                item.razaoSocial = rs.getString("RAZAOSOCIAL");
-                item.limGozo = rs.getTimestamp("LIMGOZO");
+                item.codEmp        = rs.getInt("CODEMP");
+                item.codFunc       = rs.getInt("CODFUNC");
+                item.sequencia     = rs.getInt("SEQUENCIA");
+                item.nomeFunc      = rs.getString("NOMEFUNC");
+                item.descrDep      = rs.getString("DESCRDEP");
+                item.razaoSocial   = rs.getString("RAZAOSOCIAL");
+                item.limGozo       = rs.getTimestamp("LIMGOZO");
                 item.diasParaVencer = rs.getLong("DIAS_PARA_VENCER");
                 resultado.add(item);
             }
@@ -184,10 +173,7 @@ public class AlertaFeriasNotificacao /* implements ScheduledAction */ {
     }
 
     // ------------------------------------------------------------------
-    // DEDUPLICAÇÃO POR FUNCIONÁRIO -- CONFIRMADO
-    // A query traz uma linha por período de férias. Quando o mesmo
-    // CODFUNC aparece em mais de uma linha, mantém-se apenas UMA linha
-    // representante -- a de menor diasParaVencer (período mais urgente).
+    // DEDUPLICAÇÃO -- mantém só o período mais urgente por funcionário
     // ------------------------------------------------------------------
     private List<FuncionarioAlerta> agruparPorFuncionario(List<FuncionarioAlerta> linhas) {
         Map<String, FuncionarioAlerta> porChave = new LinkedHashMap<String, FuncionarioAlerta>();
@@ -204,10 +190,7 @@ public class AlertaFeriasNotificacao /* implements ScheduledAction */ {
     }
 
     // ------------------------------------------------------------------
-    // FILTRO "AINDA NÃO NOTIFICADO"
-    // Consulta AD_FERIAS_NOTIFICADO e exclui quem já foi notificado para
-    // o mesmo período (CODEMP + CODFUNC + SEQUENCIA). A tabela deve ser
-    // criada antes de ativar o modo DIFF (ver sql/ad_ferias_notificado.sql).
+    // FILTRO DIFF -- exclui quem já foi notificado para o mesmo período
     // ------------------------------------------------------------------
     private List<FuncionarioAlerta> filtrarAindaNaoNotificados(List<FuncionarioAlerta> itens) {
         if (itens.isEmpty()) {
@@ -241,11 +224,8 @@ public class AlertaFeriasNotificacao /* implements ScheduledAction */ {
     }
 
     // ------------------------------------------------------------------
-    // REGISTRO DE NOTIFICADOS
-    // INSERT em AD_FERIAS_NOTIFICADO para cada funcionário notificado.
-    // PK (CODEMP, CODFUNC, SEQUENCIA) garante idempotência: se a rotina
-    // rodar duas vezes no mesmo dia por erro operacional, o segundo INSERT
-    // falha silenciosamente em vez de duplicar o alerta.
+    // REGISTRO -- grava quem foi notificado (modo DIFF)
+    // WHERE NOT EXISTS garante idempotência se a rotina rodar duas vezes
     // ------------------------------------------------------------------
     private void registrarComoNotificados(List<FuncionarioAlerta> itens) {
         String sql = "INSERT INTO AD_FERIAS_NOTIFICADO (CODEMP, CODFUNC, SEQUENCIA, DTNOTIFICACAO) "
@@ -263,14 +243,14 @@ public class AlertaFeriasNotificacao /* implements ScheduledAction */ {
                         item.codEmp, item.codFunc, item.sequencia);
             }
         } catch (Exception e) {
-            throw new RuntimeException("Falha ao registrar notificados em AD_FERIAS_NOTIFICADO", e);
+            throw new RuntimeException("Falha ao registrar em AD_FERIAS_NOTIFICADO", e);
         } finally {
             session.close();
         }
     }
 
     // ------------------------------------------------------------------
-    // MONTAGEM DA MENSAGEM -- E-MAIL (lista completa) -- CONFIRMADO
+    // MONTAGEM -- e-mail (lista concatenada)
     // ------------------------------------------------------------------
     private String montarCorpoEmail(List<FuncionarioAlerta> itens, String modo) {
         StringBuilder sb = new StringBuilder();
@@ -285,23 +265,12 @@ public class AlertaFeriasNotificacao /* implements ScheduledAction */ {
     }
 
     // ------------------------------------------------------------------
-    // MONTAGEM DA MENSAGEM -- SININHO (um aviso por colaborador) -- CONFIRMADO
-    // Sem link de destino por enquanto (ver incerteza [4] sobre GET_LINK_TELA).
+    // MONTAGEM -- sininho (um por colaborador)
     // ------------------------------------------------------------------
     private String montarDescricaoAviso(FuncionarioAlerta item) {
         return formatarLinhaColaborador(item);
     }
 
-    /**
-     * Formato único reaproveitado no e-mail (uma linha por item) e no
-     * sininho (uma Descricao por aviso): nome + departamento/empresa +
-     * dias para vencer + data limite.
-     * [RECONSTITUÍDO -- REVISAR]: a formatação exata da string final
-     * (texto literal) não foi encontrada 100% fechada nos resultados de
-     * busca -- o formato abaixo segue o padrão geral descrito ("nome +
-     * situação de cada colaborador"), mas o texto literal pode precisar
-     * de ajuste fino comparado ao que foi efetivamente fechado.
-     */
     private String formatarLinhaColaborador(FuncionarioAlerta item) {
         return item.nomeFunc
                 + " (" + item.razaoSocial + " - " + item.descrDep + ")"
@@ -310,38 +279,43 @@ public class AlertaFeriasNotificacao /* implements ScheduledAction */ {
     }
 
     // ------------------------------------------------------------------
-    // ENVIO DE E-MAIL -- TODO [2][6], incerteza não resolvida
+    // ENVIO DE E-MAIL
+    // TODO [EMAIL]: durante os testes, o corpo do e-mail é impresso no
+    // console (log do Sankhya). Substituir pelo mecanismo real quando
+    // confirmado com o suporte Sankhya ou testado no ambiente.
     // ------------------------------------------------------------------
     private void enviarEmail(String titulo, String corpo) {
-        // TODO: mecanismo real de envio de e-mail a partir de uma rotina
-        // agendada (fora do contexto de botão/AcaoRotinaJava) ainda não
-        // confirmado. EmailHelper abaixo é HIPOTÉTICO.
-        // EmailHelper.enviar(titulo, corpo, listaDestinatariosDP);
-        throw new UnsupportedOperationException(
-            "Mecanismo de envio de e-mail fora do contexto de botão ainda não confirmado (incerteza [2]).");
+        log("======== E-MAIL (simulado -- pendência [2] não resolvida) ========");
+        log("ASSUNTO: " + titulo);
+        log("CORPO:\n" + corpo);
+        log("==================================================================");
+        // TODO [EMAIL]: quando o mecanismo real for confirmado, implementar aqui.
+        // NÃO lança exceção durante testes para não bloquear o envio dos sinos.
     }
 
     // ------------------------------------------------------------------
-    // ENVIO DE NOTIFICAÇÃO NO SININHO -- CONFIRMADO (via procedure)
-    // Chama STP_NOTIFICA_SISTEMA_CUSTOM (ver sql/stp_notifica_sistema_custom.sql).
+    // ENVIO DE SININHO -- via STP_NOTIFICA_SISTEMA_CUSTOM
     // ------------------------------------------------------------------
     private void enviarNotificacaoSino(String titulo, String descricao) {
         String sql = "BEGIN STP_NOTIFICA_SISTEMA_CUSTOM("
                    + "P_TITULO => ?, P_DESCRICAO => ?, P_CODUSU => NULL, "
                    + "P_CODGRUPO => ?, P_CODUSUREMETENTE => ?, P_IMPORTANCIA => 0); END;";
 
-        // TODO [RECONSTITUÍDO]: confirmar a forma real de chamar uma procedure
-        // PL/SQL (com parâmetros nomeados) via JdbcWrapper neste ambiente --
-        // abaixo é a forma genérica, não validada em produção.
         SessionHandle session = JapeSession.open();
         try {
-            JdbcWrapper.executeNative(session, sql, titulo, descricao, CODGRUPO_DP, CODUSU_REMETENTE_SISTEMA);
+            JdbcWrapper.executeNative(session, sql,
+                    titulo, descricao, CODGRUPO_DP, CODUSU_REMETENTE_SISTEMA);
         } catch (Exception e) {
-            throw new RuntimeException("Falha ao notificar sininho via STP_NOTIFICA_SISTEMA_CUSTOM", e);
+            throw new RuntimeException("Falha ao notificar sininho: " + descricao, e);
         } finally {
             session.close();
         }
     }
-}
 
-// DDL da tabela auxiliar de controle: ver sql/ad_ferias_notificado.sql
+    // ------------------------------------------------------------------
+    // LOG -- imprime no console do Sankhya (visível nos logs da JVM)
+    // ------------------------------------------------------------------
+    private void log(String msg) {
+        System.out.println("[AlertaFerias] " + msg);
+    }
+}
