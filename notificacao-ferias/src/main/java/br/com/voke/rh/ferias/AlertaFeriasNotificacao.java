@@ -2,8 +2,9 @@
    AlertaFeriasNotificacao.java
 
    ESTADO: PRONTO PARA TESTE EM AMBIENTE SANKHYA.
+   Escopo: apenas notificação no sininho (TSIAVI). Sem envio de e-mail.
 
-   ANTES DE SUBIR NO SANKHYA, resolver as 3 pendências abaixo:
+   ANTES DE SUBIR NO SANKHYA, resolver as 2 pendências abaixo:
 
    [1] ASSINATURA ScheduledAction: descomente o bloco "OPÇÃO A" ou "OPÇÃO B"
        conforme o resultado de:
@@ -12,10 +13,6 @@
 
    [2] CODGRUPO_DP: preencher com o código real do grupo do DP.
        Consultar: SELECT CODGRUPO, DESCRGRU FROM TSIGRU WHERE DESCRGRU LIKE '%DP%'
-
-   [3] E-MAIL: durante os testes, o e-mail é apenas logado no console do Sankhya
-       (System.out). Quando o mecanismo real for confirmado, substituir o bloco
-       marcado com "TODO [EMAIL]" pelo envio real.
    ============================================================================ */
 
 package br.com.voke.rh.ferias;
@@ -96,13 +93,6 @@ public class AlertaFeriasNotificacao {
             log("Nenhum novo alerta para enviar. Encerrando.");
             return;
         }
-
-        String tituloEmail = "COMPLETO".equals(modoExecucao)
-                ? "Relatório mensal - Férias a vencer"
-                : "Novo alerta de férias a vencer";
-
-        String corpoEmail = montarCorpoEmail(alertasParaNotificar, modoExecucao);
-        enviarEmail(tituloEmail, corpoEmail);
 
         String tituloAviso = "COMPLETO".equals(modoExecucao)
                 ? "Férias a vencer (relatório mensal)"
@@ -250,21 +240,6 @@ public class AlertaFeriasNotificacao {
     }
 
     // ------------------------------------------------------------------
-    // MONTAGEM -- e-mail (lista concatenada)
-    // ------------------------------------------------------------------
-    private String montarCorpoEmail(List<FuncionarioAlerta> itens, String modo) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("COMPLETO".equals(modo)
-                ? "Relatório mensal de funcionários com férias a vencer:\n\n"
-                : "Novo(s) funcionário(s) entrou(aram) na janela crítica de férias a vencer:\n\n");
-
-        for (FuncionarioAlerta item : itens) {
-            sb.append("- ").append(formatarLinhaColaborador(item)).append("\n");
-        }
-        return sb.toString();
-    }
-
-    // ------------------------------------------------------------------
     // MONTAGEM -- sininho (um por colaborador)
     // ------------------------------------------------------------------
     private String montarDescricaoAviso(FuncionarioAlerta item) {
@@ -276,21 +251,6 @@ public class AlertaFeriasNotificacao {
                 + " (" + item.razaoSocial + " - " + item.descrDep + ")"
                 + " - férias vencem em " + item.diasParaVencer + " dia(s)"
                 + " (venc. " + item.limGozo + ")";
-    }
-
-    // ------------------------------------------------------------------
-    // ENVIO DE E-MAIL
-    // TODO [EMAIL]: durante os testes, o corpo do e-mail é impresso no
-    // console (log do Sankhya). Substituir pelo mecanismo real quando
-    // confirmado com o suporte Sankhya ou testado no ambiente.
-    // ------------------------------------------------------------------
-    private void enviarEmail(String titulo, String corpo) {
-        log("======== E-MAIL (simulado -- pendência [2] não resolvida) ========");
-        log("ASSUNTO: " + titulo);
-        log("CORPO:\n" + corpo);
-        log("==================================================================");
-        // TODO [EMAIL]: quando o mecanismo real for confirmado, implementar aqui.
-        // NÃO lança exceção durante testes para não bloquear o envio dos sinos.
     }
 
     // ------------------------------------------------------------------
