@@ -1,0 +1,5 @@
+Coloque aqui o Cuckoo.jar do ambiente Sankhya do cliente.
+
+O arquivo .classpath já aponta para lib/Cuckoo.jar.
+Depois de copiar o jar, clique com o botão direito no projeto
+no Eclipse > Refresh para que o Eclipse reconheça.
