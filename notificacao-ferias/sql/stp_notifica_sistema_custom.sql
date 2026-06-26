@@ -8,7 +8,7 @@
      na constante C_CODGRUPO_DP. Substituir pelo valor real do TSIGRU:
          SELECT CODGRUPO, DESCRGRU FROM SANKHYA.TSIGRU WHERE DESCRGRU LIKE '%DP%'
    - P_IMPORTANCIA com DEFAULT 0 (Urgentíssimo) em vez de 3
-   - Coluna CODUSUREMENTI (grafia real confirmada na SANKHYA.TSIAVI)
+   - Coluna CODUSUREMETENTE (grafia confirmada via ALL_TAB_COLUMNS no ambiente)
    ============================================================================ */
 
 CREATE OR REPLACE PROCEDURE STP_NOTIFICA_SISTEMA_CUSTOM(
@@ -35,7 +35,7 @@ BEGIN
         CODGRUPO,
         TIPO,
         DHCRIACAO,
-        CODUSUREMENTI
+        CODUSUREMETENTE
     ) VALUES (
         V_NUAVISO,
         P_TITULO,
