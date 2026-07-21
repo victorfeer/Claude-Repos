@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log de Acessos — Sankhya</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --azul-marinho:#1B3D6D;
+    --azul-marinho-escuro:#122A4D;
+    --azul-tint:#E8EDF5;
+    --rosa:#F291D6;
+    --rosa-texto:#A03389;
+    --rosa-escuro:#C452A8;
+    --bege:#E3DDC9;
+    --bege-claro:#F6F3EC;
+    --cinza-texto:#595959;
+    --sucesso-bg:#E4F4E9;
+    --sucesso-texto:#1B7A45;
+    --falha-bg:#FBE4E7;
+    --falha-texto:#B12A3A;
+    --borda:#f0ece0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Poppins', system-ui, Arial, sans-serif;
+    background:var(--bege-claro);
+    color:var(--cinza-texto);
+    font-size:14px;
+    line-height:1.4;
+  }
+  .voke-app{max-width:1280px;margin:0 auto;padding:0 0 32px;}
+
+  /* Header */
+  .voke-header{
+    position:relative;
+    background:linear-gradient(135deg, var(--azul-marinho) 0%, var(--azul-marinho-escuro) 100%);
+    padding:22px 24px;
+    overflow:hidden;
+    display:flex;
+    align-items:center;
+    gap:16px;
+  }
+  .voke-header::before,
+  .voke-header::after{
+    content:"";
+    position:absolute;
+    border-radius:50%;
+    background:var(--rosa);
+  }
+  .voke-header::before{
+    width:180px;height:180px;
+    top:-90px; right:60px;
+    opacity:.15;
+  }
+  .voke-header::after{
+    width:110px;height:110px;
+    bottom:-60px; right:220px;
+    opacity:.22;
+  }
+  .voke-header-icon{
+    position:relative; z-index:1;
+    width:44px;height:44px;
+    min-width:44px;
+    border-radius:12px;
+    background:var(--rosa);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .voke-header-icon svg{width:24px;height:24px;}
+  .voke-header-text{position:relative; z-index:1;}
+  .voke-header-text h1{
+    margin:0; color:#fff; font-size:19px; font-weight:600; letter-spacing:.2px;
+  }
+  .voke-header-text p{
+    margin:2px 0 0; color:#BFD1EC; font-size:12.5px; font-weight:400;
+  }
+
+  /* Filter bar */
+  .filter-bar{
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px;
+    padding:16px 24px; background:#fff; border-bottom:1px solid var(--borda);
+  }
+  .search-box{
+    position:relative; flex:1 1 260px; min-width:200px;
+  }
+  .search-box input{
+    width:100%; padding:9px 12px 9px 34px; border:1px solid #ddd6c4; border-radius:8px;
+    font-family:inherit; font-size:13.5px; color:var(--azul-marinho-escuro);
+    background:var(--bege-claro);
+    outline:none; transition:border-color .15s;
+  }
+  .search-box input:focus{border-color:var(--azul-marinho);}
+  .search-box svg{
+    position:absolute; left:10px; top:50%; transform:translateY(-50%);
+    width:15px;height:15px; color:var(--cinza-texto); opacity:.6;
+  }
+  .period-chip{
+    display:flex; align-items:center; gap:6px;
+    background:var(--azul-tint); color:var(--azul-marinho);
+    border:1px solid #d6e0ee; border-radius:20px; padding:7px 12px;
+    font-size:12.5px; font-weight:500;
+  }
+  .period-chip select{
+    border:none; background:transparent; color:var(--azul-marinho);
+    font-family:inherit; font-weight:600; font-size:12.5px; outline:none; cursor:pointer;
+  }
+  .btn{
+    border:none; border-radius:8px; padding:9px 16px; font-family:inherit;
+    font-size:13px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+    transition:filter .15s, opacity .15s;
+  }
+  .btn:hover{filter:brightness(0.95);}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+  .btn-primary{background:var(--rosa); color:var(--azul-marinho-escuro);}
+  .btn-outline{background:#fff; color:var(--azul-marinho); border:1px solid var(--azul-marinho);}
+  .btn-outline:hover{background:var(--azul-tint);}
+  .btn-sm{padding:6px 12px; font-size:12px;}
+
+  /* Banner */
+  .banner{
+    margin:14px 24px 0; padding:10px 14px; border-radius:8px;
+    font-size:12.5px; font-weight:500; display:flex; align-items:center; gap:8px;
+  }
+  .banner-demo{background:var(--bege); color:var(--azul-marinho-escuro);}
+  .banner-error{background:var(--falha-bg); color:var(--falha-texto);}
+
+  /* KPI cards */
+  .kpi-grid{
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:14px;
+    padding:20px 24px 4px;
+  }
+  @media (max-width: 900px){ .kpi-grid{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width: 520px){ .kpi-grid{grid-template-columns:1fr;} }
+  .kpi-card{
+    position:relative; background:#fff; border-radius:12px; padding:16px 18px;
+    box-shadow:0 1px 3px rgba(18,42,77,.08); overflow:hidden;
+  }
+  .kpi-card::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:3px;
+  }
+  .kpi-card.c-total::before{background:var(--azul-marinho);}
+  .kpi-card.c-users::before{background:var(--rosa);}
+  .kpi-card.c-dur::before{background:#7C9CC9;}
+  .kpi-card.c-fail::before{background:var(--falha-texto);}
+  .kpi-label{font-size:12px; color:var(--cinza-texto); font-weight:500; margin:0 0 6px;}
+  .kpi-value{font-size:26px; font-weight:700; color:var(--azul-marinho-escuro); margin:0;}
+  .kpi-value .unit{font-size:13px; font-weight:500; color:var(--cinza-texto); margin-left:2px;}
+  .kpi-value.skeleton{color:transparent; background:var(--borda); border-radius:6px; display:inline-block; width:70px;}
+
+  /* Sections */
+  .section{margin:22px 24px 0;}
+  .section-head{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin-bottom:10px; flex-wrap:wrap;
+  }
+  .section-head h2{
+    font-size:15px; color:var(--azul-marinho-escuro); margin:0; font-weight:600;
+  }
+  .section-head .count{
+    font-size:12px; color:var(--cinza-texto); font-weight:400; margin-left:6px;
+  }
+  .table-wrap{
+    background:#fff; border-radius:12px; overflow:hidden;
+    box-shadow:0 1px 3px rgba(18,42,77,.08);
+  }
+  .table-scroll{overflow-x:auto;}
+  table{width:100%; border-collapse:collapse; min-width:640px;}
+  thead th{
+    background:var(--azul-marinho); color:#fff; text-align:left;
+    font-size:12px; font-weight:600; padding:10px 14px; white-space:nowrap;
+  }
+  tbody td{
+    padding:9px 14px; border-bottom:1px solid var(--borda); font-size:13px;
+    white-space:nowrap; color:var(--cinza-texto);
+  }
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--bege-claro);}
+  .user-name{color:var(--azul-marinho); font-weight:500;}
+  .muted{color:#9aa0a6;}
+  .pill{
+    display:inline-block; padding:3px 10px; border-radius:999px;
+    font-size:11.5px; font-weight:600;
+  }
+  .pill-ok{background:var(--sucesso-bg); color:var(--sucesso-texto);}
+  .pill-fail{background:var(--falha-bg); color:var(--falha-texto);}
+  .empty-row td{text-align:center; color:#9aa0a6; padding:24px; font-size:13px;}
+
+  .lazy-panel{
+    padding:36px 20px; text-align:center;
+  }
+  .lazy-panel p{margin:0 0 14px; font-size:13px; color:var(--cinza-texto); max-width:480px; margin-left:auto; margin-right:auto;}
+  .lazy-panel .warn{color:var(--rosa-texto); font-weight:500;}
+
+  .footer-note{
+    margin:24px 24px 0; font-size:11.5px; color:#9aa0a6; text-align:center;
+  }
+
+  @media (max-width: 640px){
+    .filter-bar{padding:14px 16px;}
+    .section{margin-left:16px; margin-right:16px;}
+    .kpi-grid{padding-left:16px; padding-right:16px;}
+    .voke-header{padding:18px 16px;}
+  }
+</style>
+</head>
+<body>
+<div class="voke-app">
+
+  <header class="voke-header">
+    <div class="voke-header-icon">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L3 6.5V11c0 5 3.8 9.5 9 11 5.2-1.5 9-6 9-11V6.5L12 2z" stroke="#122A4D" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M9 12l2 2 4-4" stroke="#122A4D" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="voke-header-text">
+      <h1>Log de acessos — Sankhya</h1>
+      <p id="headerSubtitle">Últimos 18 meses · todos os usuários</p>
+    </div>
+  </header>
+
+  <div class="filter-bar">
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+        <path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <input type="text" id="searchInput" placeholder="Buscar por usuário ou IP...">
+    </div>
+    <div class="period-chip">
+      <span>Período:</span>
+      <select id="periodSelect">
+        <option value="18">Últimos 18 meses</option>
+        <option value="6">Últimos 6 meses</option>
+        <option value="3">Últimos 3 meses</option>
+        <option value="1">Último mês</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" id="exportSessionsBtn" title="Exportar tabela de sessões de login em CSV">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Exportar
+    </button>
+  </div>
+
+  <div id="bannerArea"></div>
+
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card c-total">
+      <p class="kpi-label">Total de acessos</p>
+      <p class="kpi-value skeleton" id="kpiTotal">—</p>
+    </div>
+    <div class="kpi-card c-users">
+      <p class="kpi-label">Usuários ativos</p>
+      <p class="kpi-value skeleton" id="kpiUsers">—</p>
+    </div>
+    <div class="kpi-card c-dur">
+      <p class="kpi-label">Duração média</p>
+      <p class="kpi-value skeleton" id="kpiDur">—</p>
+    </div>
+    <div class="kpi-card c-fail">
+      <p class="kpi-label">Acessos com falha</p>
+      <p class="kpi-value skeleton" id="kpiFail">—</p>
+    </div>
+  </div>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>Sessões de login <span class="count" id="sessionsCount"></span></h2>
+    </div>
+    <div class="table-wrap">
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Usuário</th><th>Login</th><th>Logout</th><th>Duração</th><th>IP</th><th>Navegador</th>
+            </tr>
+          </thead>
+          <tbody id="sessionsBody">
+            <tr class="empty-row"><td colspan="6">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>Eventos de acesso detalhados <span class="count" id="eventsCount"></span></h2>
+      <button class="btn btn-outline btn-sm" id="exportEventsBtn" style="display:none;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Exportar CSV
+      </button>
+    </div>
+    <div class="table-wrap">
+      <div id="eventsLazyPanel" class="lazy-panel">
+        <p>Este relatório pode conter um <span class="warn">grande volume de linhas</span> para o período selecionado. Carregue sob demanda para evitar sobrecarga.</p>
+        <button class="btn btn-primary btn-sm" id="loadEventsBtn">Carregar eventos detalhados</button>
+      </div>
+      <div class="table-scroll" id="eventsTableScroll" style="display:none;">
+        <table>
+          <thead>
+            <tr>
+              <th>Usuário</th><th>Dh. acesso</th><th>Módulo</th><th>Programa</th><th>IP</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="eventsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <p class="footer-note">Voke · Gadget de log de acessos Sankhya · dados sujeitos à janela de 18 meses configurada</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ======================================================================
+   * 1. INTEGRAÇÃO COM O BANCO — DbExplorerSP.executeQuery (padrão gadget Sankhya)
+   *    Fora do Sankhya Om (ex: teste local no navegador), cai automaticamente
+   *    para os dados mock definidos mais abaixo.
+   * ==================================================================== */
+
+  var Q1_COLUMNS = ["CODUSU","NOME_USUARIO","DH_LOGIN","DH_LOGOUT","DURACAO_MIN","IP","NAVEGADOR","SESSIONID","EVENTO","SEQACESSO"];
+  var Q2_COLUMNS = ["USUARIO","DHACESSO","MODULO","PROGRAMA","CODPROD","SUCESSO","IP","HOSTNAME","TERMINAL","VERSAOEXE","SID"];
+  var Q3_COLUMNS = ["TOTAL_ACESSOS","USUARIOS_ATIVOS","DURACAO_MEDIA_MIN","ACESSOS_FALHA"];
+
+  function sqlSessions(months){
+    return "SELECT rlg.CODUSU, usu.NOMEUSU AS NOME_USUARIO, " +
+      "rlg.LOGIN AS DH_LOGIN, rlg.LOGOUT AS DH_LOGOUT, " +
+      "ROUND((rlg.LOGOUT - rlg.LOGIN) * 24 * 60, 1) AS DURACAO_MIN, " +
+      "rlg.IP, rlg.AGENTE AS NAVEGADOR, rlg.SESSIONID, rlg.EVENTO, rlg.SEQACESSO " +
+      "FROM TSIRLG rlg " +
+      "LEFT JOIN TSIUSU usu ON usu.CODUSU = rlg.CODUSU " +
+      "WHERE rlg.LOGIN >= ADD_MONTHS(SYSDATE, -" + months + ") " +
+      "ORDER BY rlg.LOGIN DESC";
+  }
+
+  function sqlEvents(months){
+    return "SELECT lac.USUARIO, lac.DHACESSO, lac.MODULO, lac.PROGRAMA, lac.CODPROD, " +
+      "lac.SUCESSO, lac.IP, lac.HOSTNAME, lac.TERMINAL, lac.VERSAOEXE, lac.SID " +
+      "FROM TSILAC lac " +
+      "WHERE lac.DHACESSO >= ADD_MONTHS(SYSDATE, -" + months + ") " +
+      "ORDER BY lac.DHACESSO DESC";
+  }
+
+  function sqlKpis(months){
+    return "SELECT " +
+      "(SELECT COUNT(*) FROM TSIRLG WHERE LOGIN >= ADD_MONTHS(SYSDATE,-" + months + ")) AS TOTAL_ACESSOS, " +
+      "(SELECT COUNT(DISTINCT CODUSU) FROM TSIRLG WHERE LOGIN >= ADD_MONTHS(SYSDATE,-" + months + ")) AS USUARIOS_ATIVOS, " +
+      "(SELECT ROUND(AVG((LOGOUT-LOGIN)*24*60),0) FROM TSIRLG WHERE LOGIN >= ADD_MONTHS(SYSDATE,-" + months + ") AND LOGOUT IS NOT NULL) AS DURACAO_MEDIA_MIN, " +
+      "(SELECT COUNT(*) FROM TSILAC WHERE DHACESSO >= ADD_MONTHS(SYSDATE,-" + months + ") AND SUCESSO='N') AS ACESSOS_FALHA " +
+      "FROM DUAL";
+  }
+
+  function isSankhyaAvailable(){
+    return typeof DbExplorerSP !== "undefined" && DbExplorerSP && typeof DbExplorerSP.executeQuery === "function";
+  }
+
+  // Normaliza os formatos de retorno mais comuns do DbExplorerSP para
+  // um array de objetos { COLUNA: valor }, usando a ordem do SELECT como
+  // fallback quando não há metadados de coluna explícitos no retorno.
+  function normalizeRows(raw, columnOrder){
+    if (!raw) return [];
+    if (typeof raw === "string") {
+      try { raw = JSON.parse(raw); } catch(e) { return []; }
+    }
+    var rawRows = raw.rows || raw.rowsData || raw.data || raw;
+    if (!Array.isArray(rawRows)) return [];
+    if (rawRows.length === 0) return [];
+
+    // Já vem como array de objetos
+    if (!Array.isArray(rawRows[0])) {
+      return rawRows;
+    }
+
+    // Array de arrays -> usa metadados de coluna se existirem, senão columnOrder
+    var cols = columnOrder;
+    if (raw.fields && Array.isArray(raw.fields)) {
+      cols = raw.fields.map(function(f){ return (f.name || f.NOME || f).toString().toUpperCase(); });
+    } else if (raw.columns && Array.isArray(raw.columns)) {
+      cols = raw.columns.map(function(c){ return (c.name || c.NOME || c).toString().toUpperCase(); });
+    }
+    return rawRows.map(function(row){
+      var obj = {};
+      cols.forEach(function(colName, idx){ obj[colName] = row[idx]; });
+      return obj;
+    });
+  }
+
+  function runQuery(sql, columnOrder){
+    return new Promise(function(resolve, reject){
+      if (!isSankhyaAvailable()) {
+        reject(new Error("DbExplorerSP indisponível — executando fora do Sankhya Om."));
+        return;
+      }
+      try {
+        DbExplorerSP.executeQuery(sql, function(result){
+          try { resolve(normalizeRows(result, columnOrder)); }
+          catch(e){ reject(e); }
+        }, function(err){ reject(err); });
+      } catch(e){
+        reject(e);
+      }
+    });
+  }
+
+  /* ======================================================================
+   * 2. DADOS MOCK — fallback para uso/teste fora do Sankhya Om
+   * ==================================================================== */
+
+  var MOCK_USERS = [
+    {cod:1, nome:"ANA CAROLINA SOUZA", login:"ana.souza"},
+    {cod:2, nome:"BRUNO HENRIQUE LIMA", login:"bruno.lima"},
+    {cod:3, nome:"CARLA MENDES", login:"carla.mendes"},
+    {cod:4, nome:"DIEGO ALVES FERREIRA", login:"diego.ferreira"},
+    {cod:5, nome:"ELISA RIBEIRO", login:"elisa.ribeiro"},
+    {cod:6, nome:"FELIPE COSTA", login:"felipe.costa"},
+    {cod:7, nome:"GABRIELA PEREIRA", login:"gabriela.pereira"},
+    {cod:8, nome:"HUGO MARTINS", login:"hugo.martins"}
+  ];
+  var MOCK_BROWSERS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/124.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Firefox/126.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) Safari/605.1",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Edg/124.0"
+  ];
+  var MOCK_MODULOS = ["Vendas","Financeiro","Estoque","Compras","Fiscal","RH","CRM"];
+  var MOCK_PROGRAMAS = ["Pedido de Venda","Nota Fiscal","Contas a Pagar","Contas a Receber","Consulta de Estoque","Cadastro de Parceiro","Ordem de Compra","Painel Financeiro"];
+
+  function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  function pick(arr){ return arr[randInt(0, arr.length-1)]; }
+
+  function buildMockSessions(months){
+    var rows = [];
+    var now = new Date();
+    var totalDays = months * 30;
+    var count = Math.max(40, Math.round(totalDays * 1.6));
+    for (var i=0;i<count;i++){
+      var u = pick(MOCK_USERS);
+      var loginDate = new Date(now.getTime() - randInt(0, totalDays)*86400000 - randInt(0,86399)*1000);
+      var isOpen = i < 3; // algumas sessões recentes em aberto
+      var durMin = isOpen ? null : randInt(2, 240);
+      var logoutDate = isOpen ? null : new Date(loginDate.getTime() + durMin*60000);
+      rows.push({
+        CODUSU: u.cod,
+        NOME_USUARIO: u.nome,
+        DH_LOGIN: loginDate,
+        DH_LOGOUT: logoutDate,
+        DURACAO_MIN: durMin,
+        IP: "10.0." + randInt(0,20) + "." + randInt(2,254),
+        NAVEGADOR: pick(MOCK_BROWSERS),
+        SESSIONID: "SID" + randInt(100000,999999),
+        EVENTO: pick(["1","2","3"]),
+        SEQACESSO: i+1
+      });
+    }
+    rows.sort(function(a,b){ return b.DH_LOGIN - a.DH_LOGIN; });
+    return rows;
+  }
+
+  function buildMockEvents(months){
+    var rows = [];
+    var now = new Date();
+    var totalDays = months * 30;
+    var count = Math.max(60, Math.round(totalDays * 2.2));
+    for (var i=0;i<count;i++){
+      var u = pick(MOCK_USERS);
+      var dh = new Date(now.getTime() - randInt(0, totalDays)*86400000 - randInt(0,86399)*1000);
+      var falhou = Math.random() < 0.06;
+      rows.push({
+        USUARIO: u.login,
+        DHACESSO: dh,
+        MODULO: pick(MOCK_MODULOS),
+        PROGRAMA: pick(MOCK_PROGRAMAS),
+        CODPROD: randInt(1000,9999),
+        SUCESSO: falhou ? "N" : "S",
+        IP: "10.0." + randInt(0,20) + "." + randInt(2,254),
+        HOSTNAME: "WS-" + randInt(1,80),
+        TERMINAL: "TERM" + randInt(1,80),
+        VERSAOEXE: "4.1." + randInt(0,40),
+        SID: randInt(100,9999)
+      });
+    }
+    rows.sort(function(a,b){ return b.DHACESSO - a.DHACESSO; });
+    return rows;
+  }
+
+  function buildMockKpis(sessions, events){
+    var users = {};
+    sessions.forEach(function(s){ users[s.CODUSU] = true; });
+    var durs = sessions.filter(function(s){ return s.DURACAO_MIN != null; }).map(function(s){ return s.DURACAO_MIN; });
+    var avgDur = durs.length ? Math.round(durs.reduce(function(a,b){return a+b;},0) / durs.length) : 0;
+    var falhas = events.filter(function(e){ return e.SUCESSO === "N"; }).length;
+    return {
+      TOTAL_ACESSOS: sessions.length,
+      USUARIOS_ATIVOS: Object.keys(users).length,
+      DURACAO_MEDIA_MIN: avgDur,
+      ACESSOS_FALHA: falhas
+    };
+  }
+
+  /* ======================================================================
+   * 3. UTILITÁRIOS
+   * ==================================================================== */
+
+  function parseDate(value){
+    if (value == null) return null;
+    if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+    if (typeof value === "number") { var d = new Date(value); return isNaN(d.getTime()) ? null : d; }
+    if (typeof value === "string") {
+      var s = value.trim();
+      if (!s) return null;
+      // dd/mm/yyyy hh:mm:ss ou dd/mm/yyyy
+      var br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+      if (br) {
+        return new Date(+br[3], +br[2]-1, +br[1], +(br[4]||0), +(br[5]||0), +(br[6]||0));
+      }
+      var d2 = new Date(s);
+      return isNaN(d2.getTime()) ? null : d2;
+    }
+    return null;
+  }
+
+  function pad2(n){ return n < 10 ? "0"+n : ""+n; }
+
+  function fmtDateTime(value){
+    var d = parseDate(value);
+    if (!d) return "";
+    return pad2(d.getDate())+"/"+pad2(d.getMonth()+1)+"/"+d.getFullYear()+" "+pad2(d.getHours())+":"+pad2(d.getMinutes());
+  }
+
+  function fmtDuration(min){
+    if (min == null || min === "" || isNaN(min)) return "";
+    min = Number(min);
+    var h = Math.floor(min/60), m = Math.round(min%60);
+    if (h > 0) return h+"h "+m+"min";
+    return m+"min";
+  }
+
+  function escapeHtml(str){
+    return String(str == null ? "" : str)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+
+  // Sanitiza contra injeção de fórmula em CSV (=, +, -, @ no início da célula)
+  function csvSafeCell(value){
+    var s = value == null ? "" : String(value);
+    if (/^[=+\-@]/.test(s)) s = "'" + s;
+    s = s.replace(/"/g, '""');
+    return '"' + s + '"';
+  }
+
+  function downloadCsv(filename, headers, rows){
+    var lines = [headers.map(csvSafeCell).join(";")];
+    rows.forEach(function(r){ lines.push(r.map(csvSafeCell).join(";")); });
+    var content = "﻿" + lines.join("\r\n");
+    var blob = new Blob([content], {type:"text/csv;charset=utf-8;"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function showBanner(type, message){
+    var area = document.getElementById("bannerArea");
+    var div = document.createElement("div");
+    div.className = "banner " + (type === "error" ? "banner-error" : "banner-demo");
+    div.textContent = message;
+    area.innerHTML = "";
+    area.appendChild(div);
+  }
+
+  function clearBanner(){
+    document.getElementById("bannerArea").innerHTML = "";
+  }
+
+  /* ======================================================================
+   * 4. ESTADO E RENDERIZAÇÃO
+   * ==================================================================== */
+
+  var state = {
+    months: 18,
+    sessions: [],
+    events: [],
+    eventsLoaded: false,
+    search: ""
+  };
+
+  function matchesSearch(text){
+    if (!state.search) return true;
+    return String(text || "").toLowerCase().indexOf(state.search) !== -1;
+  }
+
+  function renderKpis(kpis){
+    document.getElementById("kpiTotal").textContent = (kpis.TOTAL_ACESSOS || 0).toLocaleString("pt-BR");
+    document.getElementById("kpiTotal").classList.remove("skeleton");
+    document.getElementById("kpiUsers").textContent = (kpis.USUARIOS_ATIVOS || 0).toLocaleString("pt-BR");
+    document.getElementById("kpiUsers").classList.remove("skeleton");
+    var dur = document.getElementById("kpiDur");
+    dur.innerHTML = (kpis.DURACAO_MEDIA_MIN || 0) + '<span class="unit">min</span>';
+    dur.classList.remove("skeleton");
+    document.getElementById("kpiFail").textContent = (kpis.ACESSOS_FALHA || 0).toLocaleString("pt-BR");
+    document.getElementById("kpiFail").classList.remove("skeleton");
+  }
+
+  function renderSessions(){
+    var tbody = document.getElementById("sessionsBody");
+    var filtered = state.sessions.filter(function(s){
+      return matchesSearch(s.NOME_USUARIO) || matchesSearch(s.IP) || matchesSearch(s.CODUSU);
+    });
+    document.getElementById("sessionsCount").textContent = "(" + filtered.length + ")";
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Nenhum registro encontrado</td></tr>';
+      return;
+    }
+    var html = filtered.map(function(s){
+      var logoutTxt = s.DH_LOGOUT ? fmtDateTime(s.DH_LOGOUT) : '<span class="muted">em aberto</span>';
+      var durTxt = s.DH_LOGOUT ? fmtDuration(s.DURACAO_MIN) : '<span class="muted">—</span>';
+      return "<tr>" +
+        "<td class=\"user-name\">"+escapeHtml(s.NOME_USUARIO || ("Usuário "+s.CODUSU))+"</td>" +
+        "<td>"+fmtDateTime(s.DH_LOGIN)+"</td>" +
+        "<td>"+logoutTxt+"</td>" +
+        "<td>"+durTxt+"</td>" +
+        "<td>"+escapeHtml(s.IP)+"</td>" +
+        "<td title=\""+escapeHtml(s.NAVEGADOR)+"\">"+escapeHtml(truncate(s.NAVEGADOR, 34))+"</td>" +
+        "</tr>";
+    }).join("");
+    tbody.innerHTML = html;
+  }
+
+  function renderEvents(){
+    var tbody = document.getElementById("eventsBody");
+    var filtered = state.events.filter(function(e){
+      return matchesSearch(e.USUARIO) || matchesSearch(e.IP);
+    });
+    document.getElementById("eventsCount").textContent = state.eventsLoaded ? "(" + filtered.length + ")" : "";
+    if (!filtered.length) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Nenhum registro encontrado</td></tr>';
+      return;
+    }
+    var html = filtered.map(function(e){
+      var ok = String(e.SUCESSO).toUpperCase() === "S";
+      var pill = ok ? '<span class="pill pill-ok">Sucesso</span>' : '<span class="pill pill-fail">Falha</span>';
+      return "<tr>" +
+        "<td class=\"user-name\">"+escapeHtml(e.USUARIO)+"</td>" +
+        "<td>"+fmtDateTime(e.DHACESSO)+"</td>" +
+        "<td>"+escapeHtml(e.MODULO)+"</td>" +
+        "<td>"+escapeHtml(e.PROGRAMA)+"</td>" +
+        "<td>"+escapeHtml(e.IP)+"</td>" +
+        "<td>"+pill+"</td>" +
+        "</tr>";
+    }).join("");
+    tbody.innerHTML = html;
+  }
+
+  function truncate(str, len){
+    str = String(str || "");
+    return str.length > len ? str.slice(0, len-1) + "…" : str;
+  }
+
+  /* ======================================================================
+   * 5. CARREGAMENTO DE DADOS
+   * ==================================================================== */
+
+  function loadSessionsAndKpis(){
+    var months = state.months;
+    document.getElementById("sessionsBody").innerHTML = '<tr class="empty-row"><td colspan="6">Carregando...</td></tr>';
+    ["kpiTotal","kpiUsers","kpiDur","kpiFail"].forEach(function(id){
+      var el = document.getElementById(id);
+      el.textContent = "—"; el.classList.add("skeleton");
+    });
+
+    var sessionsPromise = isSankhyaAvailable()
+      ? runQuery(sqlSessions(months), Q1_COLUMNS)
+      : Promise.reject(new Error("standalone"));
+
+    var kpisPromise = isSankhyaAvailable()
+      ? runQuery(sqlKpis(months), Q3_COLUMNS)
+      : Promise.reject(new Error("standalone"));
+
+    Promise.all([sessionsPromise, kpisPromise]).then(function(results){
+      clearBanner();
+      state.sessions = results[0];
+      renderSessions();
+      renderKpis(results[1][0] || {});
+    }).catch(function(){
+      // Fallback mock — cobre tanto ambiente standalone quanto falha real de integração
+      showBanner("demo", "Modo demonstração — DbExplorerSP não detectado. Exibindo dados fictícios para o período selecionado.");
+      var mockSessions = buildMockSessions(months);
+      var mockEventsForKpi = state.eventsLoaded ? state.events : buildMockEvents(months);
+      state.sessions = mockSessions;
+      renderSessions();
+      renderKpis(buildMockKpis(mockSessions, mockEventsForKpi));
+    });
+  }
+
+  function loadEvents(){
+    var months = state.months;
+    var btn = document.getElementById("loadEventsBtn");
+    btn.disabled = true;
+    btn.textContent = "Carregando...";
+
+    var promise = isSankhyaAvailable()
+      ? runQuery(sqlEvents(months), Q2_COLUMNS)
+      : Promise.reject(new Error("standalone"));
+
+    promise.then(function(rows){
+      state.events = rows;
+      state.eventsLoaded = true;
+      finishEventsLoad();
+    }).catch(function(){
+      state.events = buildMockEvents(months);
+      state.eventsLoaded = true;
+      finishEventsLoad();
+    });
+  }
+
+  function finishEventsLoad(){
+    document.getElementById("eventsLazyPanel").style.display = "none";
+    document.getElementById("eventsTableScroll").style.display = "block";
+    document.getElementById("exportEventsBtn").style.display = "inline-flex";
+    renderEvents();
+  }
+
+  /* ======================================================================
+   * 6. EVENTOS DE UI
+   * ==================================================================== */
+
+  document.getElementById("periodSelect").addEventListener("change", function(e){
+    state.months = parseInt(e.target.value, 10);
+    var labels = {"18":"Últimos 18 meses","6":"Últimos 6 meses","3":"Últimos 3 meses","1":"Último mês"};
+    document.getElementById("headerSubtitle").textContent = labels[e.target.value] + " · todos os usuários";
+    state.eventsLoaded = false;
+    state.events = [];
+    document.getElementById("eventsTableScroll").style.display = "none";
+    document.getElementById("exportEventsBtn").style.display = "none";
+    document.getElementById("eventsLazyPanel").style.display = "block";
+    document.getElementById("loadEventsBtn").disabled = false;
+    document.getElementById("loadEventsBtn").textContent = "Carregar eventos detalhados";
+    document.getElementById("eventsCount").textContent = "";
+    loadSessionsAndKpis();
+  });
+
+  document.getElementById("searchInput").addEventListener("input", function(e){
+    state.search = e.target.value.trim().toLowerCase();
+    renderSessions();
+    if (state.eventsLoaded) renderEvents();
+  });
+
+  document.getElementById("loadEventsBtn").addEventListener("click", loadEvents);
+
+  document.getElementById("exportSessionsBtn").addEventListener("click", function(){
+    var filtered = state.sessions.filter(function(s){
+      return matchesSearch(s.NOME_USUARIO) || matchesSearch(s.IP) || matchesSearch(s.CODUSU);
+    });
+    var headers = ["Usuario","Login","Logout","Duracao(min)","IP","Navegador"];
+    var rows = filtered.map(function(s){
+      return [
+        s.NOME_USUARIO || "",
+        fmtDateTime(s.DH_LOGIN),
+        s.DH_LOGOUT ? fmtDateTime(s.DH_LOGOUT) : "em aberto",
+        s.DH_LOGOUT ? (s.DURACAO_MIN != null ? s.DURACAO_MIN : "") : "",
+        s.IP || "",
+        s.NAVEGADOR || ""
+      ];
+    });
+    downloadCsv("sessoes_login.csv", headers, rows);
+  });
+
+  document.getElementById("exportEventsBtn").addEventListener("click", function(){
+    var filtered = state.events.filter(function(e){
+      return matchesSearch(e.USUARIO) || matchesSearch(e.IP);
+    });
+    var headers = ["Usuario","DhAcesso","Modulo","Programa","IP","Status"];
+    var rows = filtered.map(function(e){
+      return [
+        e.USUARIO || "",
+        fmtDateTime(e.DHACESSO),
+        e.MODULO || "",
+        e.PROGRAMA || "",
+        e.IP || "",
+        String(e.SUCESSO).toUpperCase() === "S" ? "Sucesso" : "Falha"
+      ];
+    });
+    downloadCsv("eventos_acesso_detalhados.csv", headers, rows);
+  });
+
+  /* ======================================================================
+   * 7. INICIALIZAÇÃO
+   * ==================================================================== */
+
+  loadSessionsAndKpis();
+
+})();
+</script>
+</body>
+</html>
