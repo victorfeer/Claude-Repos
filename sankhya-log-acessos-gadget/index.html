@@ -193,6 +193,13 @@
   .pill-fail{background:var(--falha-bg); color:var(--falha-texto);}
   .empty-row td{text-align:center; color:#9aa0a6; padding:24px; font-size:13px;}
 
+  .pagination{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px 14px; border-top:1px solid var(--borda); flex-wrap:wrap;
+  }
+  .pagination-info{font-size:12px; color:var(--cinza-texto);}
+  .pagination-controls{display:flex; align-items:center; gap:8px;}
+
   .lazy-panel{
     padding:36px 20px; text-align:center;
   }
@@ -295,6 +302,13 @@
           </tbody>
         </table>
       </div>
+      <div class="pagination" id="sessionsPagination" style="display:none;">
+        <span class="pagination-info" id="sessionsPageInfo"></span>
+        <div class="pagination-controls">
+          <button class="btn btn-outline btn-sm" id="sessionsPrevBtn">‹ Anterior</button>
+          <button class="btn btn-outline btn-sm" id="sessionsNextBtn">Próxima ›</button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -320,6 +334,13 @@
           </thead>
           <tbody id="eventsBody"></tbody>
         </table>
+      </div>
+      <div class="pagination" id="eventsPagination" style="display:none;">
+        <span class="pagination-info" id="eventsPageInfo"></span>
+        <div class="pagination-controls">
+          <button class="btn btn-outline btn-sm" id="eventsPrevBtn">‹ Anterior</button>
+          <button class="btn btn-outline btn-sm" id="eventsNextBtn">Próxima ›</button>
+        </div>
       </div>
     </div>
   </section>
@@ -655,17 +676,47 @@
    * 4. ESTADO E RENDERIZAÇÃO
    * ==================================================================== */
 
+  var PAGE_SIZE = 10;
+
   var state = {
     months: 18,
     sessions: [],
     events: [],
     eventsLoaded: false,
-    search: ""
+    search: "",
+    sessionsPage: 1,
+    eventsPage: 1
   };
 
   function matchesSearch(text){
     if (!state.search) return true;
     return String(text || "").toLowerCase().indexOf(state.search) !== -1;
+  }
+
+  // Aplica paginação (10 por página) sobre um array já filtrado e atualiza
+  // os controles Anterior/Próxima da seção correspondente.
+  function paginate(filtered, page, prefix){
+    var totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    if (page > totalPages) page = totalPages;
+    if (page < 1) page = 1;
+    var start = (page - 1) * PAGE_SIZE;
+    var pageRows = filtered.slice(start, start + PAGE_SIZE);
+
+    var pagEl = document.getElementById(prefix + "Pagination");
+    var infoEl = document.getElementById(prefix + "PageInfo");
+    var prevBtn = document.getElementById(prefix + "PrevBtn");
+    var nextBtn = document.getElementById(prefix + "NextBtn");
+
+    if (!filtered.length) {
+      pagEl.style.display = "none";
+    } else {
+      pagEl.style.display = "flex";
+      infoEl.textContent = "Página " + page + " de " + totalPages + " · " + filtered.length + " registro" + (filtered.length === 1 ? "" : "s");
+      prevBtn.disabled = page <= 1;
+      nextBtn.disabled = page >= totalPages;
+    }
+
+    return { page: page, pageRows: pageRows };
   }
 
   // KPIs alimentados pela query Bônus (Total de acessos, Usuários ativos, Duração média)
@@ -703,11 +754,13 @@
       return matchesSearch(s.NOME_USUARIO) || matchesSearch(s.IP) || matchesSearch(s.CODUSU);
     });
     document.getElementById("sessionsCount").textContent = "(" + filtered.length + ")";
+    var page = paginate(filtered, state.sessionsPage, "sessions");
+    state.sessionsPage = page.page;
     if (!filtered.length) {
       tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Nenhum registro encontrado</td></tr>';
       return;
     }
-    var html = filtered.map(function(s){
+    var html = page.pageRows.map(function(s){
       var logoutTxt = s.DH_LOGOUT ? fmtDateTime(s.DH_LOGOUT) : '<span class="muted">em aberto</span>';
       var durTxt = s.DH_LOGOUT ? fmtDuration(s.DURACAO_MIN) : '<span class="muted">—</span>';
       return "<tr>" +
@@ -728,11 +781,13 @@
       return matchesSearch(e.USUARIO) || matchesSearch(e.NOME_USUARIO) || matchesSearch(e.IP);
     });
     document.getElementById("eventsCount").textContent = state.eventsLoaded ? "(" + filtered.length + ")" : "";
+    var page = paginate(filtered, state.eventsPage, "events");
+    state.eventsPage = page.page;
     if (!filtered.length) {
       tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Nenhum registro encontrado</td></tr>';
       return;
     }
-    var html = filtered.map(function(e){
+    var html = page.pageRows.map(function(e){
       var ok = String(e.SUCESSO).toUpperCase() === "S";
       var pill = ok ? '<span class="pill pill-ok">Sucesso</span>' : '<span class="pill pill-fail">Falha</span>';
       return "<tr>" +
@@ -804,10 +859,12 @@
     promise.then(function(rows){
       state.events = rows;
       state.eventsLoaded = true;
+      state.eventsPage = 1;
       finishEventsLoad();
     }).catch(function(){
       state.events = buildMockEvents(months);
       state.eventsLoaded = true;
+      state.eventsPage = 1;
       finishEventsLoad();
     });
   }
@@ -836,18 +893,39 @@
     document.getElementById("loadEventsBtn").disabled = false;
     document.getElementById("loadEventsBtn").textContent = "Carregar eventos detalhados";
     document.getElementById("eventsCount").textContent = "";
+    state.sessionsPage = 1;
+    state.eventsPage = 1;
     refreshFailKpi();
     loadSessionsAndKpis();
   });
 
   document.getElementById("searchInput").addEventListener("input", function(e){
     state.search = e.target.value.trim().toLowerCase();
+    state.sessionsPage = 1;
+    state.eventsPage = 1;
     renderSessions();
     if (state.eventsLoaded) renderEvents();
   });
 
   document.getElementById("loadEventsBtn").addEventListener("click", loadEvents);
   document.getElementById("kpiFailLink").addEventListener("click", loadEvents);
+
+  document.getElementById("sessionsPrevBtn").addEventListener("click", function(){
+    state.sessionsPage--;
+    renderSessions();
+  });
+  document.getElementById("sessionsNextBtn").addEventListener("click", function(){
+    state.sessionsPage++;
+    renderSessions();
+  });
+  document.getElementById("eventsPrevBtn").addEventListener("click", function(){
+    state.eventsPage--;
+    renderEvents();
+  });
+  document.getElementById("eventsNextBtn").addEventListener("click", function(){
+    state.eventsPage++;
+    renderEvents();
+  });
 
   document.getElementById("exportSessionsBtn").addEventListener("click", function(){
     var filtered = state.sessions.filter(function(s){
