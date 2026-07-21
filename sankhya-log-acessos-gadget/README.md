@@ -118,8 +118,26 @@ card mostra um link "carregue os eventos detalhados" no lugar do número.
 
 - Este ambiente de desenvolvimento não tem acesso ao Oracle do Sankhya —
   os dados "reais" só aparecem quando o gadget roda dentro do Sankhya Om,
-  onde `DbExplorerSP.executeQuery` existe de fato. A validação com dados
-  oficiais precisa ser feita lá.
+  onde o bridge de banco (`DbExplorerSP.executeQuery` ou equivalente)
+  existe de fato. A validação com dados oficiais precisa ser feita lá.
 - Os domínios de `EVENTO` (TSIRLG) e `SUCESSO` (TSILAC) precisam ser
   confirmados no ambiente real; o código já está preparado para ajuste
   caso o domínio real seja diferente do assumido (`'S'`/`'N'`).
+
+## Se aparecer "Modo demonstração" dentro do próprio Sankhya
+
+Isso significa que o gadget não conseguiu localizar o objeto de
+integração com o banco no ambiente real. O código tenta, antes de
+desistir (até 4 segundos, verificando a cada 250ms):
+
+- variações comuns de nome (`DbExplorerSP`, `DBExplorerSP`, `DbExplorer`,
+  etc.) e de método (`executeQuery`, `execute`, `runQuery`, `query`);
+- os escopos `window` do próprio gadget, `window.parent` e `window.top`
+  (o Sankhya pode expor o bridge só na janela pai do iframe).
+
+Se mesmo assim não encontrar, o banner "Modo demonstração" mostra um link
+**"ver diagnóstico"** que lista, dentro de cada escopo, quais propriedades
+existem com nomes parecidos com "db/explorer/sankhya/query/sql" — copie
+esse texto (ou tire print) e envie de volta para ajustar o nome/escopo
+correto na integração. O mesmo diagnóstico também é logado no console do
+navegador (`F12` → Console) ao carregar a tela.

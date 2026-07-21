@@ -127,6 +127,12 @@
   }
   .banner-demo{background:var(--bege); color:var(--azul-marinho-escuro);}
   .banner-error{background:var(--falha-bg); color:var(--falha-texto);}
+  .diag-link{margin-left:auto; padding-left:12px; font-weight:600; text-decoration:underline; cursor:pointer; white-space:nowrap;}
+  .diag-box{
+    margin:0 24px 14px; padding:10px 14px; background:#fff; border:1px solid var(--borda);
+    border-radius:8px; font-size:11px; line-height:1.6; color:var(--cinza-texto);
+    white-space:pre-wrap; font-family:'SFMono-Regular', Consolas, monospace;
+  }
 
   /* KPI cards */
   .kpi-grid{
@@ -412,8 +418,78 @@
       "ORDER BY MES DESC, QTD_ACESSOS DESC";
   }
 
+  // A ponte real com o banco (objeto/método) só é conhecida em tempo de
+  // execução: guardamos aqui o que foi encontrado por findDbBridge(), em
+  // vez de assumir "window.DbExplorerSP.executeQuery" de forma fixa —
+  // ambientes reais do Sankhya podem expor isso com outro nome, em outro
+  // escopo (parent/top do iframe) ou só depois de um pequeno atraso.
+  var dbBridge = null;
+
+  var OBJ_NAME_CANDIDATES = ["DbExplorerSP","DBExplorerSP","DbExplorerSp","dbExplorerSP","DBExplorer","DbExplorer","SankhyaDbExplorer"];
+  var METHOD_NAME_CANDIDATES = ["executeQuery","execute","runQuery","query","exec"];
+
+  function findDbBridge(){
+    var scopes = [{ label: "window", obj: window }];
+    try { if (window.parent && window.parent !== window) scopes.push({ label: "window.parent", obj: window.parent }); } catch(e){}
+    try { if (window.top && window.top !== window) scopes.push({ label: "window.top", obj: window.top }); } catch(e){}
+
+    for (var s = 0; s < scopes.length; s++){
+      var scopeObj = scopes[s].obj;
+      for (var i = 0; i < OBJ_NAME_CANDIDATES.length; i++){
+        var candidate;
+        try { candidate = scopeObj[OBJ_NAME_CANDIDATES[i]]; } catch(e){ continue; }
+        if (!candidate) continue;
+        for (var j = 0; j < METHOD_NAME_CANDIDATES.length; j++){
+          if (typeof candidate[METHOD_NAME_CANDIDATES[j]] === "function") {
+            return { scopeLabel: scopes[s].label, objName: OBJ_NAME_CANDIDATES[i], methodName: METHOD_NAME_CANDIDATES[j], obj: candidate };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  // Espera até maxWaitMs (checando a cada 250ms) o bridge aparecer, cobrindo
+  // o caso do Sankhya injetar o objeto de forma assíncrona depois do load.
+  function waitForDbBridge(maxWaitMs){
+    return new Promise(function(resolve, reject){
+      var start = Date.now();
+      (function check(){
+        var found = findDbBridge();
+        if (found) { resolve(found); return; }
+        if (Date.now() - start >= maxWaitMs) { reject(new Error("bridge não encontrado")); return; }
+        setTimeout(check, 250);
+      })();
+    });
+  }
+
   function isSankhyaAvailable(){
-    return typeof DbExplorerSP !== "undefined" && DbExplorerSP && typeof DbExplorerSP.executeQuery === "function";
+    return !!dbBridge;
+  }
+
+  // Varre window / window.parent / window.top em busca de qualquer
+  // propriedade com nome parecido com "db explorer sankhya query sql",
+  // para ajudar a identificar o bridge real quando ele não bater com os
+  // nomes já tentados em OBJ_NAME_CANDIDATES/METHOD_NAME_CANDIDATES.
+  function scanForCandidates(obj, label, results){
+    if (!obj) { results.push(label + ": inacessível"); return; }
+    var keys;
+    try { keys = Object.keys(obj); } catch(e){ results.push(label + ": não foi possível listar propriedades (" + e.message + ")"); return; }
+    var matches = keys.filter(function(k){ return /db|explorer|sankhya|query|sql/i.test(k); });
+    results.push(label + ": " + (matches.length ? matches.slice(0,30).join(", ") : "nenhum candidato entre " + keys.length + " propriedades"));
+  }
+
+  function runDiagnostics(){
+    var results = [];
+    if (dbBridge) {
+      results.push("Bridge em uso: " + dbBridge.scopeLabel + "." + dbBridge.objName + "." + dbBridge.methodName + "()");
+    } else {
+      results.push("Nenhum bridge encontrado entre os nomes/escopos testados.");
+    }
+    scanForCandidates(window, "window", results);
+    try { scanForCandidates(window.parent !== window ? window.parent : null, "window.parent", results); } catch(e){ results.push("window.parent: erro (" + e.message + ")"); }
+    try { scanForCandidates(window.top !== window ? window.top : null, "window.top", results); } catch(e){ results.push("window.top: erro (" + e.message + ")"); }
+    return results.join("\n");
   }
 
   // Normaliza os formatos de retorno mais comuns do DbExplorerSP para
@@ -449,12 +525,12 @@
 
   function runQuery(sql, columnOrder){
     return new Promise(function(resolve, reject){
-      if (!isSankhyaAvailable()) {
-        reject(new Error("DbExplorerSP indisponível — executando fora do Sankhya Om."));
+      if (!dbBridge) {
+        reject(new Error("Bridge de banco indisponível — executando fora do Sankhya Om."));
         return;
       }
       try {
-        DbExplorerSP.executeQuery(sql, function(result){
+        dbBridge.obj[dbBridge.methodName](sql, function(result){
           try { resolve(normalizeRows(result, columnOrder)); }
           catch(e){ reject(e); }
         }, function(err){ reject(err); });
@@ -661,11 +737,32 @@
 
   function showBanner(type, message){
     var area = document.getElementById("bannerArea");
+    area.innerHTML = "";
     var div = document.createElement("div");
     div.className = "banner " + (type === "error" ? "banner-error" : "banner-demo");
-    div.textContent = message;
-    area.innerHTML = "";
+    var span = document.createElement("span");
+    span.textContent = message;
+    div.appendChild(span);
     area.appendChild(div);
+
+    if (type === "demo") {
+      var pre = document.createElement("pre");
+      pre.className = "diag-box";
+      pre.style.display = "none";
+
+      var link = document.createElement("span");
+      link.className = "diag-link";
+      link.textContent = "ver diagnóstico";
+      link.addEventListener("click", function(){
+        var open = pre.style.display !== "none";
+        if (open) { pre.style.display = "none"; return; }
+        pre.textContent = runDiagnostics();
+        pre.style.display = "block";
+      });
+      div.appendChild(link);
+
+      area.appendChild(pre);
+    }
   }
 
   function clearBanner(){
@@ -837,7 +934,7 @@
       refreshFailKpi();
     }).catch(function(){
       // Fallback mock — cobre tanto ambiente standalone quanto falha real de integração
-      showBanner("demo", "Modo demonstração — DbExplorerSP não detectado. Exibindo dados fictícios para o período selecionado.");
+      showBanner("demo", "Modo demonstração — nenhuma integração com o banco foi encontrada. Exibindo dados fictícios para o período selecionado.");
       var mockSessions = buildMockSessions(months);
       state.sessions = mockSessions;
       renderSessions();
@@ -967,7 +1064,16 @@
    * 7. INICIALIZAÇÃO
    * ==================================================================== */
 
-  loadSessionsAndKpis();
+  // Espera até 4s pelo bridge de banco (cobre injeção assíncrona pelo
+  // Sankhya) antes de decidir se roda com dados reais ou cai no mock.
+  waitForDbBridge(4000).then(function(found){
+    dbBridge = found;
+    console.log("[Voke Gadget] Bridge de banco encontrado:", found.scopeLabel + "." + found.objName + "." + found.methodName + "()");
+  }).catch(function(){
+    console.warn("[Voke Gadget] Bridge de banco não encontrado após 4s — usando dados de demonstração.", runDiagnostics());
+  }).then(function(){
+    loadSessionsAndKpis();
+  });
 
 })();
 </script>
