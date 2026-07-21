@@ -424,7 +424,7 @@
   // apenas se o ambiente publicar o MGE em outro prefixo.
   var ENDPOINT = "/mge/service.sbr?serviceName=DbExplorerSP.executeQuery&outputType=json";
 
-  async function runQuery(sql, columnOrder){
+  async function executarSql(sql, columnOrder){
     var resp = await fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -462,6 +462,20 @@
       colunas.forEach(function(nomeCol, i){ obj[nomeCol] = linha[i]; });
       return obj;
     });
+  }
+
+  // O Sankhya serializa as chamadas ao serviço MGE por sessão HTTP: duas
+  // requisições simultâneas da MESMA sessão fazem o servidor cancelar uma
+  // delas ("O serviço foi cancelado por situação de concorrência..."),
+  // mesmo sendo dois SELECTs totalmente independentes. Por isso todo
+  // acesso ao banco passa por essa fila — cada chamada só começa depois
+  // que a anterior (bem-sucedida ou não) já terminou, nunca em paralelo.
+  var filaDb = Promise.resolve();
+
+  function runQuery(sql, columnOrder){
+    var resultado = filaDb.then(function(){ return executarSql(sql, columnOrder); });
+    filaDb = resultado.catch(function(){ /* mantém a fila viva mesmo após erro */ });
+    return resultado;
   }
 
   /* ======================================================================

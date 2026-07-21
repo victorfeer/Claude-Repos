@@ -140,6 +140,15 @@ código já trata dois detalhes conhecidos desse endpoint:
   (`json.statusMessage`) sobe direto pro banner "Modo demonstração", então
   qualquer erro real (SQL, permissão, etc.) aparece com o texto original
   do Sankhya, não um "não detectado" genérico.
+- **o Sankhya serializa chamadas ao MGE por sessão HTTP**: duas
+  requisições simultâneas da mesma sessão fazem o servidor cancelar uma
+  delas (`"O serviço foi cancelado por situação de concorrência..."`),
+  mesmo sendo dois SELECTs independentes. Por isso `runQuery()` passa
+  por uma fila (`filaDb`) que garante no máximo uma chamada em voo por
+  vez — Query A e a Bônus, que antes disparavam em paralelo via
+  `Promise.all`, agora rodam em sequência por baixo dos panos (o
+  `Promise.all` continua no código de chamada, só que cada `runQuery`
+  real só começa depois que o anterior termina).
 
 ## Limitações conhecidas
 
