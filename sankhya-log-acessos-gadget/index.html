@@ -210,12 +210,6 @@
     margin:24px 24px 0; font-size:11.5px; color:#9aa0a6; text-align:center;
   }
 
-  .source-badge{
-    display:inline-block; margin-left:8px; padding:2px 8px; border-radius:5px;
-    background:var(--azul-tint); color:var(--azul-marinho); font-size:10.5px;
-    font-weight:700; letter-spacing:.4px; vertical-align:middle;
-  }
-
   @media (max-width: 640px){
     .filter-bar{padding:14px 16px;}
     .section{margin-left:16px; margin-right:16px;}
@@ -236,7 +230,7 @@
     </div>
     <div class="voke-header-text">
       <h1>Log de acessos — Sankhya</h1>
-      <p id="headerSubtitle">Últimos 18 meses · todos os usuários · fonte: TSIRLG + TSILAC</p>
+      <p id="headerSubtitle">Últimos 18 meses · todos os usuários</p>
     </div>
   </header>
 
@@ -287,7 +281,7 @@
 
   <section class="section">
     <div class="section-head">
-      <h2>Sessões de login <span class="source-badge">TSIRLG</span> <span class="count" id="sessionsCount"></span></h2>
+      <h2>Sessões de login <span class="count" id="sessionsCount"></span></h2>
     </div>
     <div class="table-wrap">
       <div class="table-scroll">
@@ -314,7 +308,7 @@
 
   <section class="section">
     <div class="section-head">
-      <h2>Eventos de acesso detalhados <span class="source-badge">TSILAC</span> <span class="count" id="eventsCount"></span></h2>
+      <h2>Eventos de acesso detalhados <span class="count" id="eventsCount"></span></h2>
       <button class="btn btn-outline btn-sm" id="exportEventsBtn" style="display:none;">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M12 3v13m0 0l-4-4m4 4l4-4M5 21h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Exportar CSV
