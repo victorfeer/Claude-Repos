@@ -374,9 +374,16 @@
   var BONUS_COLUMNS = ["NOME_USUARIO","MES","QTD_ACESSOS","DURACAO_MEDIA_MIN"];
 
   // Query A — Sessões de login (recomendada, todos os usuários)
+  //
+  // LOGIN/LOGOUT são convertidos com TO_CHAR(..., 'YYYY-MM-DD"T"HH24:MI:SS')
+  // em vez de irem como DATE cru: a serialização de DATE puro pelo serviço
+  // MGE não bate com um formato que o JS entenda de forma confiável (ficava
+  // em branco na tela, mesmo com a Duração calculada certa — essa é
+  // calculada a partir das colunas DATE originais, antes da conversão).
   function sqlSessions(months){
     return "SELECT rlg.CODUSU, usu.NOMEUSU AS NOME_USUARIO, " +
-      "rlg.LOGIN AS DH_LOGIN, rlg.LOGOUT AS DH_LOGOUT, " +
+      "TO_CHAR(rlg.LOGIN, 'YYYY-MM-DD\"T\"HH24:MI:SS') AS DH_LOGIN, " +
+      "TO_CHAR(rlg.LOGOUT, 'YYYY-MM-DD\"T\"HH24:MI:SS') AS DH_LOGOUT, " +
       "ROUND((rlg.LOGOUT - rlg.LOGIN) * 24 * 60, 1) AS DURACAO_MIN, " +
       "rlg.IP, rlg.AGENTE AS NAVEGADOR, rlg.SESSIONID, rlg.EVENTO, rlg.SEQACESSO " +
       "FROM TSIRLG rlg " +
@@ -390,7 +397,9 @@
 
   // Query B — Eventos de acesso detalhados por tela/programa
   function sqlEvents(months){
-    return "SELECT lac.USUARIO, usu.NOMEUSU AS NOME_USUARIO, lac.DHACESSO, lac.MODULO, lac.PROGRAMA, lac.CODPROD, " +
+    return "SELECT lac.USUARIO, usu.NOMEUSU AS NOME_USUARIO, " +
+      "TO_CHAR(lac.DHACESSO, 'YYYY-MM-DD\"T\"HH24:MI:SS') AS DHACESSO, " +
+      "lac.MODULO, lac.PROGRAMA, lac.CODPROD, " +
       "lac.SUCESSO, lac.IP, lac.HOSTNAME, lac.TERMINAL, lac.VERSAOEXE, lac.SID " +
       "FROM TSILAC lac " +
       "LEFT JOIN TSIUSU usu ON usu.NOMEUSU = lac.USUARIO " +
