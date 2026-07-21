@@ -19,10 +19,12 @@ O Sankhya exige que o arquivo principal do gadget se chame exatamente
 1. Compacte `index.html` em um `.zip`, garantindo que ele fique na raiz do
    arquivo (não dentro de uma subpasta).
 2. Suba o zip como gadget HTML5 no Sankhya Om.
-3. Abra o gadget dentro do Om — a tela detecta automaticamente
-   `DbExplorerSP.executeQuery` e passa a usar os dados reais do seu banco.
-   Fora do Sankhya (teste local no navegador), a tela cai sozinha para
-   dados fictícios (mock) e mostra um aviso "Modo demonstração".
+3. Abra o gadget dentro do Om — a tela chama o serviço MGE do Sankhya
+   (`POST /mge/service.sbr?serviceName=DbExplorerSP.executeQuery`, mesmo
+   endpoint usado pelo gadget "Alerta de Férias a Vencer" da Voke) e passa
+   a usar os dados reais do seu banco. Fora do Sankhya (teste local no
+   navegador), o fetch falha e a tela cai sozinha para dados fictícios
+   (mock), mostrando um aviso "Modo demonstração" com o motivo do erro.
 
 ## Fontes de dados / consultas
 
@@ -111,33 +113,52 @@ card mostra um link "carregue os eventos detalhados" no lugar do número.
   período ou recarregar os eventos)
 - Exportação CSV (BOM `﻿`, separador `;`, sanitização contra
   injeção de fórmula prefixando `'` em células iniciadas com `= + - @`)
-- Fallback para dados mock realistas quando `DbExplorerSP` não está
-  disponível (uso fora do Sankhya)
+- Fallback para dados mock realistas quando o serviço MGE não responde
+  (uso fora do Sankhya, ou erro real do endpoint)
+
+## Integração com o banco
+
+Igual ao gadget "Alerta de Férias a Vencer" da Voke, a leitura do banco
+não usa nenhum objeto JS global (tipo `window.DbExplorerSP`) — é uma
+chamada HTTP direta ao serviço MGE do próprio Sankhya:
+
+```js
+POST /mge/service.sbr?serviceName=DbExplorerSP.executeQuery&outputType=json
+Content-Type: application/json
+
+{ "serviceName": "DbExplorerSP.executeQuery", "requestBody": { "sql": "<SELECT...>" } }
+```
+
+A resposta vem em `responseBody.fieldsMetadata` (nomes das colunas) +
+`responseBody.rows` (array de arrays, na mesma ordem das colunas). O
+código já trata dois detalhes conhecidos desse endpoint:
+
+- alguns servidores devolvem o corpo em ISO-8859-1 mesmo com o header
+  dizendo UTF-8 (acentos quebrados) — o gadget tenta decodificar como
+  UTF-8 estrito primeiro e refaz como ISO-8859-1 se falhar;
+- `json.status !== "1"` indica erro do lado do servidor — a mensagem
+  (`json.statusMessage`) sobe direto pro banner "Modo demonstração", então
+  qualquer erro real (SQL, permissão, etc.) aparece com o texto original
+  do Sankhya, não um "não detectado" genérico.
 
 ## Limitações conhecidas
 
 - Este ambiente de desenvolvimento não tem acesso ao Oracle do Sankhya —
   os dados "reais" só aparecem quando o gadget roda dentro do Sankhya Om,
-  onde o bridge de banco (`DbExplorerSP.executeQuery` ou equivalente)
-  existe de fato. A validação com dados oficiais precisa ser feita lá.
+  batendo no `/mge/service.sbr` de verdade. A validação com dados oficiais
+  precisa ser feita lá.
 - Os domínios de `EVENTO` (TSIRLG) e `SUCESSO` (TSILAC) precisam ser
   confirmados no ambiente real; o código já está preparado para ajuste
   caso o domínio real seja diferente do assumido (`'S'`/`'N'`).
 
 ## Se aparecer "Modo demonstração" dentro do próprio Sankhya
 
-Isso significa que o gadget não conseguiu localizar o objeto de
-integração com o banco no ambiente real. O código tenta, antes de
-desistir (até 4 segundos, verificando a cada 250ms):
+O banner mostra a mensagem de erro real (ex.: `HTTP 404`, `HTTP 401`, ou o
+`statusMessage` retornado pelo Sankhya) — copie esse texto e me mande para
+eu ajustar o endpoint ou a query. Causas prováveis:
 
-- variações comuns de nome (`DbExplorerSP`, `DBExplorerSP`, `DbExplorer`,
-  etc.) e de método (`executeQuery`, `execute`, `runQuery`, `query`);
-- os escopos `window` do próprio gadget, `window.parent` e `window.top`
-  (o Sankhya pode expor o bridge só na janela pai do iframe).
-
-Se mesmo assim não encontrar, o banner "Modo demonstração" mostra um link
-**"ver diagnóstico"** que lista, dentro de cada escopo, quais propriedades
-existem com nomes parecidos com "db/explorer/sankhya/query/sql" — copie
-esse texto (ou tire print) e envie de volta para ajustar o nome/escopo
-correto na integração. O mesmo diagnóstico também é logado no console do
-navegador (`F12` → Console) ao carregar a tela.
+- o prefixo do serviço MGE é diferente de `/mge/service.sbr` neste
+  ambiente (alguns Sankhya publicam em outro path/porta);
+- o usuário logado no gadget não tem permissão para `DbExplorerSP`;
+- alguma das 3 queries tem um erro de sintaxe/coluna que só aparece no
+  banco real (o `statusMessage` do Oracle costuma indicar exatamente qual).
