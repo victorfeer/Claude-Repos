@@ -10,14 +10,26 @@ do Sankhya (ex.: `[VOKE] Consulta Sefaz`).
 - [`consulta-nfe-standalone.html`](consulta-nfe-standalone.html) — tela completa:
   informar a **chave de acesso** → **consultar** a nota → **baixar PDF e XML**.
 
+## Pacote para o componente HTML5
+
+O componente HTML5 do Sankhya carrega um **app web** e pede um **"Ponto de
+Entrada"** — o arquivo principal a ser aberto. Por isso o pacote precisa conter
+um arquivo chamado **`index.html`** na raiz.
+
+- [`consulta-nfe-sankhya.zip`](consulta-nfe-sankhya.zip) — **este é o pacote do
+  app** (contém `index.html`). É este zip que você sobe no componente HTML5.
+
+> ⚠️ Não confunda com um zip de **XMLs** (dados). Aquele não tem `index.html` e,
+> por isso, o componente não exibe nada.
+
 ## Como usar no Sankhya
 
-1. Abra **Construtor de Telas** → seu componente (ex.: `[VOKE] Consulta Sefaz`).
-2. No painel **Componentes**, arraste um controle **HTML5** para a área de design.
-3. Cole o conteúdo de `consulta-nfe-standalone.html` no HTML5 (ou aponte a URL,
-   caso hospede o arquivo). Como é autossuficiente, funciona no iframe do
-   dashboard sem precisar liberar CDNs.
-4. Salve e abra a tela.
+1. Abra **Construtor de Componentes** → `[VOKE] Consulta Sefaz` → componente **HTML5**.
+2. Faça upload de **`consulta-nfe-sankhya.zip`**.
+3. Em **Configurar Componente HTML5 → Ponto de Entrada**, informe/selecione
+   **`index.html`**.
+4. Aplique e abra a tela. Ela é autossuficiente (sem CDN) e roda no iframe do
+   dashboard. Em modo demo, digite qualquer chave de 44 dígitos para ver o layout.
 
 ## Consulta real (SEFAZ / Sankhya)
 

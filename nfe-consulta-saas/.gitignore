@@ -11,3 +11,6 @@ target/
 application-local.yml
 # OS
 .DS_Store
+
+# Build do pacote HTML5 (gerado a partir de consulta-nfe-standalone.html)
+sankhya/dist/
