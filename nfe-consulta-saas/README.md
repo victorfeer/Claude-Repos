@@ -15,7 +15,6 @@ pela chave de acesso (44 dígitos)**, com exibição dos dados em tela e
 | Abordagens de integração Sankhya (vantagens/desvantagens + recomendação) | [`docs/INTEGRACAO-SANKHYA.md`](docs/INTEGRACAO-SANKHYA.md) |
 | Modelagem de banco (PostgreSQL + RLS multiempresa) | [`db/schema.sql`](db/schema.sql) |
 | **Frontend HTML5 funcional** (Bootstrap 5, responsivo, com modo demo) | [`frontend/`](frontend/) |
-| **Importação de `.zip`/`.xml` do Sankhya** (descompacta e faz parse do XML no navegador) | [`frontend/assets/js/nfe-zip.js`](frontend/assets/js/nfe-zip.js), [`nfe-xml.js`](frontend/assets/js/nfe-xml.js) |
 | Geração de PDF (jsPDF + QR Code da chave) | [`frontend/assets/js/pdf.js`](frontend/assets/js/pdf.js) |
 | Backend skeleton (Spring Boot 3 / Java 21) + integração OAuth2 Sankhya | [`backend/`](backend/) |
 | Segurança (JWT, BCrypt, RBAC, CSP, anti-SQLi/XSS) | [`backend/.../security/SecurityConfig.java`](backend/src/main/java/tech/voke/nfe/security/SecurityConfig.java) |
@@ -25,16 +24,18 @@ pela chave de acesso (44 dígitos)**, com exibição dos dados em tela e
 ## Embutir no Sankhya (componente HTML5 do Construtor de Telas)
 
 Para colar dentro de um componente **HTML5** do Sankhya (ex.: `[VOKE] Consulta
-Sefaz`) e subir o `.zip` direto na tela do dashboard, use a versão
-autossuficiente (sem CDN, sem backend):
+Sefaz`), use a versão autossuficiente (sem CDN):
 
 - [`sankhya/consulta-nfe-standalone.html`](sankhya/consulta-nfe-standalone.html) — arquivo único.
 - Instruções: [`sankhya/README.md`](sankhya/README.md).
-- `.zip` de exemplo para teste: [`exemplos/notas-exemplo.zip`](exemplos/notas-exemplo.zip) (2 notas).
 
-Essa versão lê o `.zip` **nativamente no navegador** (API `DecompressionStream`,
-sem JSZip) e faz o parse do XML com `DOMParser`. No Windows, dá para abrir o
-`.html` com **duplo-clique** — não precisa de Python nem servidor local.
+A tela recebe a **chave de acesso**, consulta a nota (SEFAZ/Sankhya via backend)
+e permite **baixar o PDF e o XML**. No Windows, dá para abrir o `.html` com
+**duplo-clique** — não precisa de Python nem servidor local.
+
+> A consulta real na SEFAZ exige **certificado digital** e passa pelo backend
+> (o navegador não acessa a SEFAZ diretamente por CORS/certificado). Defina a
+> `API.baseUrl` no arquivo para apontar ao backend; sem isso, opera em modo demo.
 
 ## Testar agora (30 segundos, sem backend)
 

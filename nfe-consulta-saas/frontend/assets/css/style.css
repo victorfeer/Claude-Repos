@@ -73,22 +73,6 @@ body {
   font-size: .78rem; max-height: 60vh; overflow: auto; white-space: pre-wrap; word-break: break-all;
 }
 
-/* ---- Separador "ou" ---- */
-.separador-ou { display: flex; align-items: center; text-align: center; color: var(--voke-gray); }
-.separador-ou::before, .separador-ou::after {
-  content: ""; flex: 1; border-bottom: 1px solid #d9d3c0;
-}
-.separador-ou span { padding: 0 .8rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .1em; }
-
-/* ---- Dropzone ---- */
-.dropzone {
-  border: 2px dashed #b9c4d6; border-radius: 12px; padding: 1.4rem 1rem;
-  text-align: center; cursor: pointer; transition: all .15s ease; background: #fafbfe;
-}
-.dropzone:hover { border-color: var(--voke-navy); background: #f2f6fd; }
-.dropzone.dragover { border-color: var(--voke-pink-strong); background: #fdf2fa; }
-.dz-icone { font-size: 1.8rem; line-height: 1; margin-bottom: .3rem; }
-
 /* ---- Footer ---- */
 .footer-voke { background: #fff; border-top: 3px solid var(--voke-pink); }
 
