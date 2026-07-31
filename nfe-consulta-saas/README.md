@@ -15,6 +15,7 @@ pela chave de acesso (44 dígitos)**, com exibição dos dados em tela e
 | Abordagens de integração Sankhya (vantagens/desvantagens + recomendação) | [`docs/INTEGRACAO-SANKHYA.md`](docs/INTEGRACAO-SANKHYA.md) |
 | Modelagem de banco (PostgreSQL + RLS multiempresa) | [`db/schema.sql`](db/schema.sql) |
 | **Frontend HTML5 funcional** (Bootstrap 5, responsivo, com modo demo) | [`frontend/`](frontend/) |
+| **Importação de `.zip`/`.xml` do Sankhya** (descompacta e faz parse do XML no navegador) | [`frontend/assets/js/nfe-zip.js`](frontend/assets/js/nfe-zip.js), [`nfe-xml.js`](frontend/assets/js/nfe-xml.js) |
 | Geração de PDF (jsPDF + QR Code da chave) | [`frontend/assets/js/pdf.js`](frontend/assets/js/pdf.js) |
 | Backend skeleton (Spring Boot 3 / Java 21) + integração OAuth2 Sankhya | [`backend/`](backend/) |
 | Segurança (JWT, BCrypt, RBAC, CSP, anti-SQLi/XSS) | [`backend/.../security/SecurityConfig.java`](backend/src/main/java/tech/voke/nfe/security/SecurityConfig.java) |

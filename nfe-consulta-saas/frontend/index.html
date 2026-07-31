@@ -77,6 +77,19 @@
                   Usar chave de exemplo (demo)
                 </button>
               </div>
+
+              <!-- Separador -->
+              <div class="separador-ou my-3"><span>ou</span></div>
+
+              <!-- Upload de .zip / .xml exportado do Sankhya -->
+              <label class="form-label fw-semibold">Importar XML(s) da NF-e (.zip ou .xml)</label>
+              <div id="dropZip" class="dropzone">
+                <input type="file" id="arquivoZip" accept=".zip,.xml" class="d-none" />
+                <div class="dz-icone">📦</div>
+                <div class="fw-semibold text-navy">Arraste um .zip do Sankhya aqui</div>
+                <div class="text-muted small">ou clique para selecionar (.zip com vários XMLs ou um .xml avulso)</div>
+              </div>
+              <div id="zipStatus" class="small mt-2"></div>
             </div>
           </div>
 
@@ -216,6 +229,22 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL SELEÇÃO (zip com várias notas) ==================== -->
+  <div class="modal fade" id="modalSelecao" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Notas encontradas no arquivo</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small">Selecione uma nota para visualizar e gerar o PDF.</p>
+          <div class="list-group" id="listaNotas"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <footer class="footer-voke text-center py-4">
     <div class="container small">
       <strong class="text-navy">voke</strong> · Consulta NF-e SaaS —
@@ -231,8 +260,12 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- JSZip: descompacta o .zip do Sankhya no navegador -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
   <script src="assets/js/nfe-mock.js"></script>
+  <script src="assets/js/nfe-xml.js"></script>
+  <script src="assets/js/nfe-zip.js"></script>
   <script src="assets/js/api.js"></script>
   <script src="assets/js/pdf.js"></script>
   <script src="assets/js/app.js"></script>

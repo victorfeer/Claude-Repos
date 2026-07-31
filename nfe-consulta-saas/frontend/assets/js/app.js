@@ -35,6 +35,74 @@
     $("contadorDigitos").textContent = 44;
   });
 
+  // ---- Upload de .zip / .xml (leitura 100% no navegador) ----
+  const dropZip = $("dropZip");
+  const inputZip = $("arquivoZip");
+
+  dropZip.addEventListener("click", () => inputZip.click());
+  inputZip.addEventListener("change", (e) => {
+    if (e.target.files && e.target.files[0]) processarArquivo(e.target.files[0]);
+  });
+  ["dragenter", "dragover"].forEach(ev =>
+    dropZip.addEventListener(ev, (e) => { e.preventDefault(); dropZip.classList.add("dragover"); }));
+  ["dragleave", "drop"].forEach(ev =>
+    dropZip.addEventListener(ev, (e) => { e.preventDefault(); dropZip.classList.remove("dragover"); }));
+  dropZip.addEventListener("drop", (e) => {
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) processarArquivo(f);
+  });
+
+  async function processarArquivo(file) {
+    const status = $("zipStatus");
+    status.className = "small mt-2 text-muted";
+    status.textContent = "Lendo arquivo…";
+    try {
+      const { notas, erros } = await NfeZip.processar(file);
+      if (!notas.length) {
+        status.className = "small mt-2 text-danger";
+        status.textContent = "Nenhuma NF-e válida encontrada. " + (erros[0] || "");
+        return;
+      }
+      status.className = "small mt-2 text-success";
+      status.textContent = `${notas.length} nota(s) lida(s).` +
+        (erros.length ? ` ${erros.length} ignorada(s).` : "");
+
+      if (notas.length === 1) {
+        notaAtual = notas[0];
+        renderizar(notaAtual);
+      } else {
+        abrirSelecao(notas);
+      }
+    } catch (err) {
+      status.className = "small mt-2 text-danger";
+      status.textContent = err.message || "Falha ao processar o arquivo.";
+    } finally {
+      inputZip.value = ""; // permite reenviar o mesmo arquivo
+    }
+  }
+
+  function abrirSelecao(notas) {
+    const lista = $("listaNotas");
+    lista.innerHTML = notas.map((n, i) => `
+      <button type="button" class="list-group-item list-group-item-action" data-idx="${i}">
+        <div class="d-flex justify-content-between">
+          <span class="fw-semibold text-navy">NF-e ${escapeHtml(n.numero)} · Série ${escapeHtml(n.serie)}</span>
+          <span class="fw-semibold">${fmtMoeda(n.valorTotal)}</span>
+        </div>
+        <div class="small text-muted">${escapeHtml(n.emitente.nome)} → ${escapeHtml(n.destinatario.nome)}</div>
+      </button>`).join("");
+
+    const modal = new bootstrap.Modal($("modalSelecao"));
+    lista.querySelectorAll("[data-idx]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        notaAtual = notas[parseInt(btn.dataset.idx, 10)];
+        modal.hide();
+        renderizar(notaAtual);
+      });
+    });
+    modal.show();
+  }
+
   // ---- Submit da consulta ----
   $("formConsulta").addEventListener("submit", async (e) => {
     e.preventDefault();
