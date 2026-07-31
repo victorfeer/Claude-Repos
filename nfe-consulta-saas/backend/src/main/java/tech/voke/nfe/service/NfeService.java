@@ -1,58 +1,47 @@
 package tech.voke.nfe.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import tech.voke.nfe.dto.NotaFiscalDTO;
+import tech.voke.nfe.integration.SankhyaClient;
+import tech.voke.nfe.integration.SankhyaNfeGateway;
 
 import java.util.Optional;
 
 /**
- * Orquestra a consulta de NF-e aplicando a estratégia de fontes em cascata:
- *
- *   1) Cache/repositório próprio (tabela nota_fiscal)  — mais rápido.
- *   2) Sankhya (API REST DbExplorer ou consulta ao banco Oracle).
- *   3) (Opcional) SEFAZ — quando permitido e a nota não é do próprio emitente.
- *
- * Toda consulta é registrada em `consulta` e auditada em `log_auditoria`.
+ * Consulta a NF-e pela chave de acesso via API do Sankhya (OAuth 2.0).
+ * Registra a consulta no log (auditoria mínima); o cache/histórico em banco
+ * é uma evolução prevista na arquitetura.
  */
 @Service
 public class NfeService {
 
-    private final NotaCacheService cache;
-    private final SankhyaNfeGateway sankhya;
-    private final ConsultaAuditService auditoria;
+    private static final Logger log = LoggerFactory.getLogger(NfeService.class);
 
-    public NfeService(NotaCacheService cache,
-                      SankhyaNfeGateway sankhya,
-                      ConsultaAuditService auditoria) {
-        this.cache = cache;
+    private final SankhyaClient sankhya;
+    private final SankhyaNfeGateway gateway;
+
+    public NfeService(SankhyaClient sankhya, SankhyaNfeGateway gateway) {
         this.sankhya = sankhya;
-        this.auditoria = auditoria;
+        this.gateway = gateway;
     }
 
     public Optional<NotaFiscalDTO> consultarPorChave(String chave) {
         long inicio = System.currentTimeMillis();
-
-        // 1) Cache local
-        Optional<NotaFiscalDTO> cached = cache.buscar(chave);
-        if (cached.isPresent()) {
-            auditoria.registrar(chave, "ENCONTRADA", "CACHE", ms(inicio));
-            return cached;
+        if (!sankhya.disponivel()) {
+            log.warn("Sankhya não configurado (sankhya.client-id/secret/x-token ausentes) — consulta indisponível.");
+            throw new IllegalStateException("Integração Sankhya não configurada no servidor.");
         }
-
-        // 2) Sankhya (API/DB) — resolve e persiste no cache para as próximas.
-        Optional<NotaFiscalDTO> daSankhya = sankhya.consultar(chave);
-        if (daSankhya.isPresent()) {
-            cache.salvar(daSankhya.get());
-            auditoria.registrar(chave, "ENCONTRADA", "SANKHYA", ms(inicio));
-            return daSankhya;
+        try {
+            Optional<NotaFiscalDTO> nota = gateway.consultar(chave);
+            log.info("Consulta NF-e chave={} resultado={} ({} ms)",
+                    chave, nota.isPresent() ? "ENCONTRADA" : "NAO_ENCONTRADA", System.currentTimeMillis() - inicio);
+            return nota;
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new SankhyaClient.SankhyaException("Falha ao consultar a NF-e: " + e.getMessage());
         }
-
-        // 3) Não encontrada (SEFAZ ficaria aqui, se habilitado)
-        auditoria.registrar(chave, "NAO_ENCONTRADA", "SANKHYA", ms(inicio));
-        return Optional.empty();
-    }
-
-    private int ms(long inicio) {
-        return (int) (System.currentTimeMillis() - inicio);
     }
 }

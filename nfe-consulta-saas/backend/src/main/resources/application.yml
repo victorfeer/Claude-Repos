@@ -1,30 +1,25 @@
-# Configuração da API Consulta NF-e SaaS
+# API Consulta NF-e — integração Sankhya (OAuth 2.0)
 server:
-  port: 8081
+  port: ${PORT:8081}
 
 spring:
   application:
     name: nfe-consulta-saas
-  datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/nfe_saas}
-    username: ${DB_USER:nfe}
-    password: ${DB_PASSWORD:}      # via secrets manager / variável de ambiente
-  jpa:
-    hibernate:
-      ddl-auto: validate           # schema versionado por Flyway a partir de db/schema.sql
-    open-in-view: false
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          # Emissor/validador do JWT do próprio SaaS (não confundir com o token Sankhya)
-          issuer-uri: ${JWT_ISSUER_URI:https://auth.suaempresa.com.br}
 
-# CORS: origem do frontend
+# Credenciais do Gateway Sankhya — preencha por variáveis de ambiente.
+#   SANKHYA_CLIENT_ID / SANKHYA_CLIENT_SECRET → Área do Desenvolvedor
+#   SANKHYA_X_TOKEN → Sankhya Om → Configurações → Gateway
+sankhya:
+  auth-url:      ${SANKHYA_AUTH_URL:https://api.sankhya.com.br/authenticate}
+  gateway-url:   ${SANKHYA_GATEWAY_URL:https://api.sankhya.com.br/gateway/v1/mge/service.sbr}
+  client-id:     ${SANKHYA_CLIENT_ID:}
+  client-secret: ${SANKHYA_CLIENT_SECRET:}
+  x-token:       ${SANKHYA_X_TOKEN:}
+
 app:
   cors:
-    allowed-origins: ${FRONTEND_ORIGIN:http://localhost:8080}
-  # As credenciais Sankhya por empresa ficam no banco (cifradas), não aqui.
+    # Origem do Sankhya que embute a tela (separe por vírgula se houver mais de uma)
+    allowed-origins: ${FRONTEND_ORIGIN:https://erp-hml.microcity.com.br:8443}
 
 management:
   endpoints:
