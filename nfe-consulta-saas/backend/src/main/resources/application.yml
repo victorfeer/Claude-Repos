@@ -1,0 +1,33 @@
+# Configuração da API Consulta NF-e SaaS
+server:
+  port: 8081
+
+spring:
+  application:
+    name: nfe-consulta-saas
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/nfe_saas}
+    username: ${DB_USER:nfe}
+    password: ${DB_PASSWORD:}      # via secrets manager / variável de ambiente
+  jpa:
+    hibernate:
+      ddl-auto: validate           # schema versionado por Flyway a partir de db/schema.sql
+    open-in-view: false
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Emissor/validador do JWT do próprio SaaS (não confundir com o token Sankhya)
+          issuer-uri: ${JWT_ISSUER_URI:https://auth.suaempresa.com.br}
+
+# CORS: origem do frontend
+app:
+  cors:
+    allowed-origins: ${FRONTEND_ORIGIN:http://localhost:8080}
+  # As credenciais Sankhya por empresa ficam no banco (cifradas), não aqui.
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

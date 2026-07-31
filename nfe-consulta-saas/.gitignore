@@ -1,0 +1,13 @@
+# Java / Maven
+target/
+*.class
+# IDE
+.idea/
+.vscode/
+*.iml
+# Secrets / ambiente
+.env
+*.pem
+application-local.yml
+# OS
+.DS_Store
