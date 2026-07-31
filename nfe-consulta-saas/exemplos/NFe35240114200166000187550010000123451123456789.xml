@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+  <NFe>
+    <infNFe versao="4.00" Id="NFe35240114200166000187550010000123451123456789">
+      <ide>
+        <cUF>35</cUF>
+        <natOp>Venda de mercadoria adquirida de terceiros</natOp>
+        <mod>55</mod>
+        <serie>1</serie>
+        <nNF>12345</nNF>
+        <dhEmi>2024-01-15T10:32:00-03:00</dhEmi>
+        <tpNF>1</tpNF>
+      </ide>
+      <emit>
+        <CNPJ>14200166000187</CNPJ>
+        <xNome>Voke Tecnologia LTDA</xNome>
+      </emit>
+      <dest>
+        <CNPJ>09876543000121</CNPJ>
+        <xNome>Cliente Exemplo Comercio SA</xNome>
+      </dest>
+      <det nItem="1">
+        <prod>
+          <cProd>NB14I5</cProd>
+          <xProd>Notebook Corporativo 14 i5 16GB</xProd>
+          <NCM>84713019</NCM>
+          <uCom>UN</uCom>
+          <qCom>3.0000</qCom>
+          <vUnCom>1200.00</vUnCom>
+          <vProd>3600.00</vProd>
+        </prod>
+      </det>
+      <det nItem="2">
+        <prod>
+          <cProd>MON24</cProd>
+          <xProd>Monitor LED 24 Full HD</xProd>
+          <NCM>85285220</NCM>
+          <uCom>UN</uCom>
+          <qCom>3.0000</qCom>
+          <vUnCom>300.00</vUnCom>
+          <vProd>900.00</vProd>
+        </prod>
+      </det>
+      <total>
+        <ICMSTot>
+          <vBC>4500.00</vBC>
+          <vICMS>540.00</vICMS>
+          <vIPI>0.00</vIPI>
+          <vPIS>74.25</vPIS>
+          <vCOFINS>342.00</vCOFINS>
+          <vProd>4500.00</vProd>
+          <vNF>4875.90</vNF>
+        </ICMSTot>
+      </total>
+    </infNFe>
+  </NFe>
+  <protNFe versao="4.00">
+    <infProt>
+      <chNFe>35240114200166000187550010000123451123456789</chNFe>
+      <dhRecbto>2024-01-15T10:33:12-03:00</dhRecbto>
+      <nProt>135240001234567</nProt>
+      <cStat>100</cStat>
+      <xMotivo>Autorizado o uso da NF-e</xMotivo>
+    </infProt>
+  </protNFe>
+</nfeProc>

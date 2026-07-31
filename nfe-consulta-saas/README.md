@@ -22,6 +22,20 @@ pela chave de acesso (44 dígitos)**, com exibição dos dados em tela e
 | Plano de implantação | [`docs/PLANO-IMPLANTACAO.md`](docs/PLANO-IMPLANTACAO.md) |
 | Custos estimados de hospedagem | [`docs/CUSTOS-HOSPEDAGEM.md`](docs/CUSTOS-HOSPEDAGEM.md) |
 
+## Embutir no Sankhya (componente HTML5 do Construtor de Telas)
+
+Para colar dentro de um componente **HTML5** do Sankhya (ex.: `[VOKE] Consulta
+Sefaz`) e subir o `.zip` direto na tela do dashboard, use a versão
+autossuficiente (sem CDN, sem backend):
+
+- [`sankhya/consulta-nfe-standalone.html`](sankhya/consulta-nfe-standalone.html) — arquivo único.
+- Instruções: [`sankhya/README.md`](sankhya/README.md).
+- `.zip` de exemplo para teste: [`exemplos/notas-exemplo.zip`](exemplos/notas-exemplo.zip) (2 notas).
+
+Essa versão lê o `.zip` **nativamente no navegador** (API `DecompressionStream`,
+sem JSZip) e faz o parse do XML com `DOMParser`. No Windows, dá para abrir o
+`.html` com **duplo-clique** — não precisa de Python nem servidor local.
+
 ## Testar agora (30 segundos, sem backend)
 
 ```bash
