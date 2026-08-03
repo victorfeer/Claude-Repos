@@ -1,0 +1,28 @@
+# API Consulta NF-e — integração Sankhya (OAuth 2.0)
+server:
+  port: ${PORT:8081}
+
+spring:
+  application:
+    name: nfe-consulta-saas
+
+# Credenciais do Gateway Sankhya — preencha por variáveis de ambiente.
+#   SANKHYA_CLIENT_ID / SANKHYA_CLIENT_SECRET → Área do Desenvolvedor
+#   SANKHYA_X_TOKEN → Sankhya Om → Configurações → Gateway
+sankhya:
+  auth-url:      ${SANKHYA_AUTH_URL:https://api.sankhya.com.br/authenticate}
+  gateway-url:   ${SANKHYA_GATEWAY_URL:https://api.sankhya.com.br/gateway/v1/mge/service.sbr}
+  client-id:     ${SANKHYA_CLIENT_ID:}
+  client-secret: ${SANKHYA_CLIENT_SECRET:}
+  x-token:       ${SANKHYA_X_TOKEN:}
+
+app:
+  cors:
+    # Origem do Sankhya que embute a tela (separe por vírgula se houver mais de uma)
+    allowed-origins: ${FRONTEND_ORIGIN:https://erp-hml.microcity.com.br:8443}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

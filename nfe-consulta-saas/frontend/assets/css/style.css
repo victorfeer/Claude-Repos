@@ -1,0 +1,83 @@
+/* ============================================================
+   Identidade visual Voke — Consulta NF-e
+   Azul marinho #1B3D6D · Rosa/magenta #F291D6 · Bege #E3DDC9
+   ============================================================ */
+:root {
+  --voke-navy: #1B3D6D;
+  --voke-navy-dark: #142e52;
+  --voke-pink: #F291D6;
+  --voke-pink-strong: #e368bf;
+  --voke-sand: #E3DDC9;
+  --voke-gray: #595959;
+}
+
+body {
+  background: var(--voke-sand);
+  color: #2b2b2b;
+  font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+}
+
+.font-mono { font-family: "SF Mono", "Consolas", "Roboto Mono", monospace; letter-spacing: .5px; }
+.text-navy { color: var(--voke-navy) !important; }
+
+/* ---- Navbar ---- */
+.navbar-voke { background: var(--voke-navy); box-shadow: 0 2px 12px rgba(20,46,82,.25); }
+.brand-mark {
+  font-weight: 800; font-size: 1.6rem; color: #fff; letter-spacing: -.5px;
+}
+.brand-mark::after { content: ""; }
+.brand-sub {
+  color: var(--voke-pink); font-weight: 600; font-size: .95rem;
+  border-left: 2px solid rgba(242,145,214,.5); padding-left: .6rem;
+}
+
+/* ---- Cards ---- */
+.card-voke { border: none; border-radius: 14px; background: #fff; }
+.card-voke .card-body { border-radius: 14px; }
+.rotulo-secao {
+  font-size: .8rem; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--voke-navy); font-weight: 700; margin-bottom: .9rem;
+}
+
+/* ---- Botões ---- */
+.btn-cta {
+  background: var(--voke-pink); border: none; color: var(--voke-navy);
+  font-weight: 700; border-radius: 10px;
+}
+.btn-cta:hover, .btn-cta:focus { background: var(--voke-pink-strong); color: #fff; }
+.btn-outline-navy { border: 1.5px solid var(--voke-navy); color: var(--voke-navy); font-weight: 600; border-radius: 10px; }
+.btn-outline-navy:hover { background: var(--voke-navy); color: #fff; }
+
+/* ---- Input chave ---- */
+#chave { letter-spacing: 1.5px; }
+.input-group-text { background: #fff; border-right: none; }
+
+/* ---- Status badge ---- */
+.badge-status {
+  display: inline-block; padding: .35rem .8rem; border-radius: 999px;
+  font-size: .78rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+}
+.badge-status.autorizada { background: #d8f5e3; color: #146c43; }
+.badge-status.cancelada  { background: #fdd8d8; color: #b02a37; }
+.badge-status.denegada   { background: #fff0cc; color: #997404; }
+
+.valor-total { font-size: 1.9rem; font-weight: 800; color: var(--voke-navy); line-height: 1; }
+
+/* ---- Card de totais ---- */
+.card-totais { background: var(--voke-navy); color: #fff; }
+.card-totais .rotulo-secao { color: rgba(255,255,255,.6); }
+
+/* ---- XML box ---- */
+.xml-box {
+  background: #0f1b2d; color: #cfe3ff; padding: 1rem; border-radius: 10px;
+  font-size: .78rem; max-height: 60vh; overflow: auto; white-space: pre-wrap; word-break: break-all;
+}
+
+/* ---- Footer ---- */
+.footer-voke { background: #fff; border-top: 3px solid var(--voke-pink); }
+
+/* ---- Responsivo ---- */
+@media (max-width: 576px) {
+  .valor-total { font-size: 1.5rem; }
+  .brand-sub { display: none; }
+}
