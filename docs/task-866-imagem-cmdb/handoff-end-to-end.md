@@ -14,18 +14,17 @@ Fluxo: **Run2Biz** grava no staging via API → **procedure** promove para
 |---|---|---|
 | A1 | Criar `ORIGEM`, `IDVOKENEX`, `DHINTEGRACAO` na `AD_IMPORTAIMAGEM` | ✅ feito |
 | A2 | Backup da procedure (`backup/SNK_PROCIMPORTARIMAGEM_CA.20260818.sql`) | ✅ no repo |
-| A3 | Subir `SNK_PROCIMPORTARIMAGEM_CA.atualizada.sql` (carimba `DHINTEGRACAO`) | ⏳ subir |
-| A4 | Confirmar que a procedure está **ativa/agendada** (quem a dispara e dá COMMIT) | ⏳ validar |
-| A5 | Definir com o time **qual `CODPARC`** o Run2Biz deve enviar (regra matriz/filial) | ⏳ definir |
+| A3 | Subir `SNK_PROCIMPORTARIMAGEM_CA.atualizada.sql` (carimba `DHINTEGRACAO`) | ✅ feito |
+| A4 | Confirmar que a procedure está **ativa/agendada** (quem a dispara e dá COMMIT) | ✅ feito |
+| A5 | Definir **qual `CODPARC`** o Run2Biz deve enviar | ✅ **decidido** (abaixo) |
 
-> A3 é opcional para a imagem *aparecer* (isso a procedure já faz). É obrigatório se você
-> quer o `DHINTEGRACAO` preenchido. Recomendado subir.
->
-> **A5 é o item que ninguém pode pular:** o campo do contrato só lista imagens cujo
-> `AD_PLANEIMAGEM.CODPARC` bate com o parceiro do contrato, **resolvendo matriz**
-> (`CODPARCMATRIZ`), com exceções para `CODPARC` 3508 e 5773. Então o Run2Biz precisa
-> mandar o `CODPARC` **certo** segundo essa regra — não um qualquer. Ver
-> `tela-contrato-campo-imagem.md`.
+> **A5 — decisão:** enviar o `CODPARC` **do mesmo jeito que o fluxo do CA faz hoje**.
+> As imagens já aparecem nos contratos pelo import atual do CA, então esse CODPARC já
+> satisfaz o filtro da tela. Regra equivalente:
+> `CODPARC = NVL(CODPARCMATRIZ do cliente, CODPARC do cliente)` — se o cliente é filial,
+> manda a matriz; senão, o próprio. Bate 1:1 com o filtro do campo Imagem
+> (`NVL(CODPARCMATRIZ, CODPARCCON)`). Os casos 3508/5773 são tratados **na tela**, não
+> exigem lógica no Run2Biz.
 
 ### (Futuro, card à parte) Hardening da procedure
 `SEQUENCE` no lugar de `MAX(SEQ)+1`, datas sem string/NLS, set-based, `TO_NUMBER` seguro,
@@ -41,7 +40,7 @@ Sankhya** e gravar na `AD_IMPORTAIMAGEM`.
 | # | Requisito | Detalhe |
 |---|---|---|
 | B1 | Chamar `DatasetSP.save` (POST `/mge/service.sbr`) inserindo na `AD_IMPORTAIMAGEM` | contrato abaixo |
-| B2 | Enviar **`CODPARC` já resolvido** respeitando **matriz/filial** | ver A5 — é o que faz a imagem aparecer no contrato certo |
+| B2 | Enviar **`CODPARC` igual ao fluxo do CA de hoje** = `NVL(CODPARCMATRIZ, CODPARC)` do cliente | ver A5 — é o que faz a imagem aparecer no contrato certo |
 | B3 | Enviar **`IDVOKENEX`** = id estável da imagem | chave de idempotência (não reenviar duplicado) |
 | B4 | Enviar **`ORIGEM` = `VOKENEX`** | marca a procedência |
 | B5 | Enviar **`STATUS = 0`** para imagem ativa | a procedure só promove novos com `status = 0`; `0`→ATIVO 'S', ≠0→'N' |
@@ -88,7 +87,7 @@ Os índices em `values` correspondem à posição no array `fields`.
 
 ## C) Pendências que travam o fechamento
 
-- [ ] **A5/B2** — regra exata do `CODPARC` a enviar (matriz/filial; casos 3508 e 5773).
+- [x] **A5/B2** — CODPARC = mesmo padrão do CA hoje (`NVL(CODPARCMATRIZ, CODPARC)`).
 - [ ] **B9** — método de autenticação do `/mge/service.sbr`.
 - [ ] **Payload completo** do card (o trecho após "Payload do novo contrato" veio cortado).
 - [ ] Semântica de `STATUS` além de 0/1 (se houver outros valores).
