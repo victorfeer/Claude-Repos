@@ -4,6 +4,17 @@ Rotina de promoção que lê a tabela de importação `AD_IMPORTAIMAGEM` e leva 
 até a tabela que o contrato lê. Precisa passar a tratar os novos campos
 `ORIGEM`, `IDVOKENEX`, `DHINTEGRACAO`.
 
+> **Confirmado pelo fonte real (2026-08-18):**
+> - **Tabela de destino** = **`AD_PLANEIMAGEM`** (colunas vistas no fonte:
+>   `SEQ`, `CODIMG`, `PERFIL`, `CODPARC`, `DTCRIACAO`, `ATIVO`, `IDIMAGEMCA`, `DHALTER`).
+> - **Dedup por `CODIMG`** (= `AD_IMPORTAIMAGEM.IMAGEM`), via `NOT EXISTS` (novos) /
+>   `EXISTS` + detecção de mudança (alterados). **`IDVOKENEX` não é chave de dedup** —
+>   é campo de procedência/rastreio.
+> - **Sem `COMMIT` interno** — o chamador controla a transação.
+> - Arquivos versionados:
+>   - Backup do fonte anterior: [`backup/SNK_PROCIMPORTARIMAGEM_CA.20260818.sql`](backup/SNK_PROCIMPORTARIMAGEM_CA.20260818.sql)
+>   - Versão atualizada: [`SNK_PROCIMPORTARIMAGEM_CA.atualizada.sql`](SNK_PROCIMPORTARIMAGEM_CA.atualizada.sql)
+
 ---
 
 ## 1. Backup da procedure (FAZER ANTES de alterar)
@@ -64,77 +75,58 @@ COMMIT;
 
 ## 2. Atualização da procedure (o que precisa mudar)
 
-> **Pendência:** template abaixo. Para o diff exato, colar aqui o **corpo atual** da
-> procedure (saída do backup Opção A). Os trechos `⟨...⟩` dependem do fonte real.
+> Fonte completo em [`SNK_PROCIMPORTARIMAGEM_CA.atualizada.sql`](SNK_PROCIMPORTARIMAGEM_CA.atualizada.sql).
+> Abaixo, o que muda e por quê. As linhas novas estão marcadas `-- 866` no `.sql`.
 
-A promoção precisa **carregar/propagar os três campos novos** ao levar o registro de
-`AD_IMPORTAIMAGEM` para ⟨tabela de destino que o contrato lê⟩:
+A promoção passa a **propagar os campos novos** e **carimbar a integração**, mantendo
+toda a lógica original (dedup por `CODIMG`, dois cursores, sem `COMMIT` interno):
 
 | Campo | Regra na promoção |
 |---|---|
-| `ORIGEM` | Propagar `ORIGEM` do registro (para `VOKENEX`, marca a procedência). |
-| `IDVOKENEX` | Propagar o id estável do VokeNext; usado como **chave de deduplicação** (não duplicar). |
-| `DHINTEGRACAO` | Gravar `SYSDATE` **no sucesso** da promoção. Nulo = ainda não integrado (permite reenvio). |
+| `ORIGEM` | Propagado do staging para `AD_PLANEIMAGEM` no INSERT (C1) e no UPDATE (C2). Marca a procedência (`VOKENEX`). |
+| `IDVOKENEX` | Propagado para `AD_PLANEIMAGEM` no INSERT e no UPDATE. **Rastreio/procedência — não é chave** (dedup segue por `CODIMG`). |
+| `DHINTEGRACAO` | Gravado em `AD_IMPORTAIMAGEM` com `SYSDATE` após promover cada linha (marca de integrado / auditoria). |
 
-### Padrão recomendado — MERGE idempotente
+### Mudanças pontuais (diff conceitual)
 
-Deduplicação depende da decisão A/B (ver spec dos campos):
-- **Hipótese A** (VokeNext manda o mesmo GUID de `IDIMAGEMCA`): casar por `IDIMAGEMCA`.
-- **Hipótese B** (VokeNext usa id próprio): casar por `IDVOKENEX`.
+1. **C1 e C2** — acrescentar ao SELECT: `img.origem AS ORIGEM, img.idvokenex AS IDVOKENEX`.
+2. **INSERT (C1)** — incluir `ORIGEM, IDVOKENEX` na lista de colunas e nos VALUES
+   (`R1.ORIGEM, R1.IDVOKENEX`).
+3. **UPDATE (C2)** — acrescentar `ORIGEM = R2.ORIGEM, IDVOKENEX = R2.IDVOKENEX`.
+4. **Novo, nos dois loops** — após promover a linha:
+   ```sql
+   UPDATE AD_IMPORTAIMAGEM SET DHINTEGRACAO = SYSDATE WHERE idimagemca = R?.IDIMAGEMCA;
+   ```
 
+### Por que NÃO reescrevi como MERGE
+O original já é idempotente por desenho (C1 = `NOT EXISTS`, C2 = `EXISTS` + detecção de
+mudança) e a correção citada no card já está aplicada. Trocar por MERGE seria reescrever
+lógica em produção sem necessidade e com risco. A alteração é **cirúrgica**: só adiciona
+os campos novos e o carimbo.
+
+### ⚠️ Pré-requisito antes de compilar
+`AD_PLANEIMAGEM` precisa ter as colunas **`ORIGEM`** e **`IDVOKENEX`**. Verificar:
 ```sql
-CREATE OR REPLACE PROCEDURE SNK_PROCIMPORTARIMAGEM_CA IS
-BEGIN
-  -- ⟨preservar aqui a lógica atual da procedure (correção já aplicada)⟩
-
-  MERGE INTO ⟨TABELA_DESTINO_CONTRATO⟩ d
-  USING (
-    SELECT i.IDIMAGEMCA,
-           i.IMAGEM,
-           i.PERFILIMAGEM,
-           i.CODPARC,
-           i.ORIGEM,
-           i.IDVOKENEX
-    FROM   AD_IMPORTAIMAGEM i
-    WHERE  i.DHINTEGRACAO IS NULL          -- só o que ainda não foi promovido
-    AND    i.ORIGEM = 'VOKENEX'            -- só as imagens vindas do VokeNext
-  ) s
-  ON ( d.⟨CHAVE⟩ = s.⟨CHAVE⟩ )             -- A: IDIMAGEMCA · B: IDVOKENEX
-  WHEN MATCHED THEN UPDATE SET
-       d.IMAGEM       = s.IMAGEM,
-       d.PERFILIMAGEM = s.PERFILIMAGEM,
-       d.CODPARC      = s.CODPARC,
-       d.ORIGEM       = s.ORIGEM,
-       d.IDVOKENEX    = s.IDVOKENEX
-  WHEN NOT MATCHED THEN INSERT
-       ( d.⟨...colunas destino...⟩, d.ORIGEM, d.IDVOKENEX )
-       VALUES
-       ( s.⟨...⟩, s.ORIGEM, s.IDVOKENEX );
-
-  -- marca como integrado SÓ o que foi promovido com sucesso
-  UPDATE AD_IMPORTAIMAGEM
-  SET    DHINTEGRACAO = SYSDATE
-  WHERE  DHINTEGRACAO IS NULL
-  AND    ORIGEM = 'VOKENEX';
-
-  COMMIT;
-EXCEPTION
-  WHEN OTHERS THEN
-    ROLLBACK;                              -- em erro: NÃO marca DHINTEGRACAO → reenvia depois
-    RAISE;
-END;
+SELECT COLUMN_NAME FROM USER_TAB_COLUMNS
+WHERE TABLE_NAME='AD_PLANEIMAGEM' AND COLUMN_NAME IN ('ORIGEM','IDVOKENEX');
 ```
+Se **não** existirem: criar (mesma spec do staging — Texto/VARCHAR) **ou** comentar as
+linhas `-- 866` do INSERT e do UPDATE. Sem isso a procedure não compila.
 
-> **Regra de ouro do card:** *"se falhar, não marcar como integrado e reenviar."* Por isso
-> `DHINTEGRACAO` só é gravado no fim, e o `EXCEPTION` faz `ROLLBACK` (deixa o registro
-> disponível para nova tentativa).
+### Tratamento de erro / transação
+Mantido como o original: **sem `COMMIT`/`EXCEPTION` internos**. Quem chama a procedure
+controla a transação. Isso já atende "se falhar, não marcar como integrado": se a
+promoção falhar e o chamador der rollback, o `DHINTEGRACAO` gravado no mesmo contexto
+**não persiste**. Se o time quiser isolamento por linha (uma imagem com erro não derrubar
+o lote), aí sim vale adicionar `BEGIN/EXCEPTION` dentro de cada loop — decisão em aberto.
 
-### Itens a confirmar para fechar o diff
-- [ ] **Corpo atual** da procedure (fonte do backup).
-- [ ] Nome real de ⟨TABELA_DESTINO_CONTRATO⟩ e suas colunas.
-- [ ] Chave de dedup: `IDIMAGEMCA` (hipótese A) ou `IDVOKENEX` (hipótese B).
-- [ ] Como a procedure é disparada (agendada / trigger / chamada pela rotina) — para não
-      duplicar a marcação de `DHINTEGRACAO`.
+### Itens confirmados / em aberto
+- [x] **Corpo atual** da procedure — recebido e salvo em `backup/`.
+- [x] **Tabela de destino** = `AD_PLANEIMAGEM`.
+- [x] **Dedup** = por `CODIMG` (não `IDIMAGEMCA` nem `IDVOKENEX`). `IDVOKENEX` é rastreio.
+- [ ] `AD_PLANEIMAGEM` tem `ORIGEM`/`IDVOKENEX`? (pré-requisito acima)
+- [ ] Como a procedure é disparada (agendada / botão / rotina) — confirmar quem dá o `COMMIT`.
+- [ ] Isolamento de erro por linha é desejado? (BEGIN/EXCEPTION por loop)
 - [x] **`DHINTEGRACAO` = `DATE` (`Data e Hora`), gravado com `SYSDATE`.** Decisão travada:
       é carimbo interno do Sankhya (não dado espelhado como `DATACRIACAO`/epoch), e é
       consultado com lógica de data (`IS NULL` = não integrado, ranges, delta). Não seguir
