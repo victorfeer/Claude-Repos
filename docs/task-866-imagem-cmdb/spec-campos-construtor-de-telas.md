@@ -104,6 +104,14 @@ DDL equivalente: `DHINTEGRACAO DATE`
 > **Nota:** manter `DHINTEGRACAO` **nulo** enquanto não promovido é o que sustenta a
 > regra "se falhar, não marcar como integrado e reenviar" (card, lado Run2Biz). O
 > preenchimento é a marca de sucesso.
+>
+> **Decisão travada — DATE, não Texto/epoch:** embora a tabela de staging use `Texto`
+> em tudo (inclusive `DATACRIACAO`, que guarda epoch espelhado do VokeNext),
+> `DHINTEGRACAO` fica **`Data e Hora` (DATE)**. É carimbo **interno** do Sankhya
+> (`SYSDATE` na promoção), não dado externo copiado, e é consultado com lógica de data
+> (`IS NULL` = não integrado, ranges, `SYSDATE - DHINTEGRACAO`). A consistência que vale
+> é com o padrão `DH*` do ERP (ex.: `AD_TGFINTE.DHINTEGRACAO` é DATE), não com a tabela
+> de staging.
 
 ---
 

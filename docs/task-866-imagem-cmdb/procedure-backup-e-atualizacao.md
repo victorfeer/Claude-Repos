@@ -135,4 +135,7 @@ END;
 - [ ] Chave de dedup: `IDIMAGEMCA` (hipótese A) ou `IDVOKENEX` (hipótese B).
 - [ ] Como a procedure é disparada (agendada / trigger / chamada pela rotina) — para não
       duplicar a marcação de `DHINTEGRACAO`.
-- [ ] `DHINTEGRACAO` = `DATE` (`SYSDATE`) ou epoch numérico, para casar com `DATACRIACAO`.
+- [x] **`DHINTEGRACAO` = `DATE` (`Data e Hora`), gravado com `SYSDATE`.** Decisão travada:
+      é carimbo interno do Sankhya (não dado espelhado como `DATACRIACAO`/epoch), e é
+      consultado com lógica de data (`IS NULL` = não integrado, ranges, delta). Não seguir
+      o padrão Texto/epoch da tabela de staging.
