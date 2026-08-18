@@ -78,40 +78,34 @@ COMMIT;
 > Fonte completo em [`SNK_PROCIMPORTARIMAGEM_CA.atualizada.sql`](SNK_PROCIMPORTARIMAGEM_CA.atualizada.sql).
 > Abaixo, o que muda e por quê. As linhas novas estão marcadas `-- 866` no `.sql`.
 
-A promoção passa a **propagar os campos novos** e **carimbar a integração**, mantendo
-toda a lógica original (dedup por `CODIMG`, dois cursores, sem `COMMIT` interno):
+**Decisão de escopo:** os campos `ORIGEM`, `IDVOKENEX`, `DHINTEGRACAO` ficam **apenas na
+`AD_IMPORTAIMAGEM` (staging)**. A `AD_PLANEIMAGEM` **não** recebe colunas novas — a
+rastreabilidade até o staging se faz pelo `IDIMAGEMCA` (já propagado). Duplicar as colunas
+nas duas tabelas seria desnormalizar sem ganho.
 
-| Campo | Regra na promoção |
-|---|---|
-| `ORIGEM` | Propagado do staging para `AD_PLANEIMAGEM` no INSERT (C1) e no UPDATE (C2). Marca a procedência (`VOKENEX`). |
-| `IDVOKENEX` | Propagado para `AD_PLANEIMAGEM` no INSERT e no UPDATE. **Rastreio/procedência — não é chave** (dedup segue por `CODIMG`). |
-| `DHINTEGRACAO` | Gravado em `AD_IMPORTAIMAGEM` com `SYSDATE` após promover cada linha (marca de integrado / auditoria). |
+| Campo | Onde vive | Regra na promoção |
+|---|---|---|
+| `ORIGEM` | staging | Escrito pela integração de entrada (Run2Biz → staging) = `VOKENEX`. Não vai para `AD_PLANEIMAGEM`. |
+| `IDVOKENEX` | staging | Rastreio/procedência. **Não é chave** (dedup segue por `CODIMG`). Não vai para `AD_PLANEIMAGEM`. |
+| `DHINTEGRACAO` | staging | Gravado com `SYSDATE` após promover cada linha (marca de integrado / auditoria). |
 
-### Mudanças pontuais (diff conceitual)
+### Mudança pontual (diff conceitual)
 
-1. **C1 e C2** — acrescentar ao SELECT: `img.origem AS ORIGEM, img.idvokenex AS IDVOKENEX`.
-2. **INSERT (C1)** — incluir `ORIGEM, IDVOKENEX` na lista de colunas e nos VALUES
-   (`R1.ORIGEM, R1.IDVOKENEX`).
-3. **UPDATE (C2)** — acrescentar `ORIGEM = R2.ORIGEM, IDVOKENEX = R2.IDVOKENEX`.
-4. **Novo, nos dois loops** — após promover a linha:
-   ```sql
-   UPDATE AD_IMPORTAIMAGEM SET DHINTEGRACAO = SYSDATE WHERE idimagemca = R?.IDIMAGEMCA;
-   ```
+Única alteração na procedure, nos **dois loops**, após promover a linha:
+```sql
+UPDATE AD_IMPORTAIMAGEM SET DHINTEGRACAO = SYSDATE WHERE idimagemca = R?.IDIMAGEMCA;
+```
+Os INSERT/UPDATE em `AD_PLANEIMAGEM` **não mudam**.
 
 ### Por que NÃO reescrevi como MERGE
 O original já é idempotente por desenho (C1 = `NOT EXISTS`, C2 = `EXISTS` + detecção de
 mudança) e a correção citada no card já está aplicada. Trocar por MERGE seria reescrever
-lógica em produção sem necessidade e com risco. A alteração é **cirúrgica**: só adiciona
-os campos novos e o carimbo.
+lógica em produção sem necessidade e com risco. A alteração é **cirúrgica**.
 
-### ⚠️ Pré-requisito antes de compilar
-`AD_PLANEIMAGEM` precisa ter as colunas **`ORIGEM`** e **`IDVOKENEX`**. Verificar:
-```sql
-SELECT COLUMN_NAME FROM USER_TAB_COLUMNS
-WHERE TABLE_NAME='AD_PLANEIMAGEM' AND COLUMN_NAME IN ('ORIGEM','IDVOKENEX');
-```
-Se **não** existirem: criar (mesma spec do staging — Texto/VARCHAR) **ou** comentar as
-linhas `-- 866` do INSERT e do UPDATE. Sem isso a procedure não compila.
+### Sem pré-requisito de coluna
+Como a `AD_PLANEIMAGEM` não recebe colunas novas, a procedure **compila direto**. Se no
+futuro quiser ver `ORIGEM`/`IDVOKENEX` também na `AD_PLANEIMAGEM`, criar as 2 colunas lá
+e descomentar os trechos `-- 866-opc` no `.sql`.
 
 ### Tratamento de erro / transação
 Mantido como o original: **sem `COMMIT`/`EXCEPTION` internos**. Quem chama a procedure
@@ -124,7 +118,7 @@ o lote), aí sim vale adicionar `BEGIN/EXCEPTION` dentro de cada loop — decis�
 - [x] **Corpo atual** da procedure — recebido e salvo em `backup/`.
 - [x] **Tabela de destino** = `AD_PLANEIMAGEM`.
 - [x] **Dedup** = por `CODIMG` (não `IDIMAGEMCA` nem `IDVOKENEX`). `IDVOKENEX` é rastreio.
-- [ ] `AD_PLANEIMAGEM` tem `ORIGEM`/`IDVOKENEX`? (pré-requisito acima)
+- [x] **Escopo dos campos** = só `AD_IMPORTAIMAGEM`. `AD_PLANEIMAGEM` não recebe colunas novas.
 - [ ] Como a procedure é disparada (agendada / botão / rotina) — confirmar quem dá o `COMMIT`.
 - [ ] Isolamento de erro por linha é desejado? (BEGIN/EXCEPTION por loop)
 - [x] **`DHINTEGRACAO` = `DATE` (`Data e Hora`), gravado com `SYSDATE`.** Decisão travada:
