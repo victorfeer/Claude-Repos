@@ -67,7 +67,17 @@ O contrato grava `SEQIMG = AD_PLANEIMAGEM.SEQ`. Portanto:
   inserts concorrentes podem gerar `SEQ` colidente, e uma referência de contrato apontaria
   para a imagem errada. É mais um motivo para migrar para `SEQUENCE` no card de hardening.
 
-### 3. `CODIMG` é o que o usuário vê
+### 3. O filtro do campo NÃO precisa mudar para as imagens VokeNext
+O "Filtro de formulário" da ligação filtra **só por `CODPARC`/`SEQ`** — **não olha `ORIGEM`**.
+Ele não distingue imagem do CA de imagem do VokeNext. Portanto, desde que a imagem VokeNext
+entre na `AD_PLANEIMAGEM` com o **CODPARC correto** (`NVL(CODPARCMATRIZ, CODPARC)` do
+cliente — decisão A5), ela **já aparece na pesquisa pelo bloco 1**, sem alterar o filtro.
+- Mexer no filtro só seria necessário se o Run2Biz **não** mandasse o CODPARC resolvido à
+  matriz (a correção certa é no envio, não no filtro), ou se quisessem **separar** as
+  imagens por origem (aí `ORIGEM` entraria no filtro — melhoria, não requisito).
+- **Conclusão: filtro permanece como está.**
+
+### 4. `CODIMG` é o que o usuário vê
 O campo exibe "Cód.Imagem" (`CODIMG`). É por `CODIMG` também que a procedure deduplica —
 consistente. O `PERFIL` não é o valor exibido nesse campo (é o código).
 
