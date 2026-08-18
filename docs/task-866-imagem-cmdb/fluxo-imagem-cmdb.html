@@ -1,0 +1,184 @@
+<title>Fluxo Imagem CMDB</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    --ground:#FBFAF6; --surface:#FFFFFF; --sand:#EFE9D8; --sand-line:#DBD3BC;
+    --ink:#1B3D6D; --body:#2A3A4E; --muted:#5B6B7D; --line:#E2E0D6;
+    --accent:#F291D6; --accent-ink:#A83277; --accent-soft:#FBE4F4;
+    --ok:#2E7D5B; --ok-soft:#E4F1EA; --pend:#B9700F; --pend-soft:#F6EBD8;
+    --shadow:0 1px 2px rgba(27,61,109,.06),0 8px 24px rgba(27,61,109,.06);
+  }
+  :root:not([data-theme="light"]){}
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0E1A2B; --surface:#152740; --sand:#1A2C46; --sand-line:#2C4A6E;
+      --ink:#EAF1FA; --body:#C7D5E6; --muted:#8FA2B8; --line:#26384F;
+      --accent:#F291D6; --accent-ink:#F6B7E1; --accent-soft:#3A2036;
+      --ok:#5FCE9E; --ok-soft:#173026; --pend:#E7B15C; --pend-soft:#33280F;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0E1A2B; --surface:#152740; --sand:#1A2C46; --sand-line:#2C4a6e;
+    --ink:#EAF1FA; --body:#C7D5E6; --muted:#8fa2b8; --line:#26384f;
+    --accent:#F291D6; --accent-ink:#F6B7E1; --accent-soft:#3A2036;
+    --ok:#5FCE9E; --ok-soft:#173026; --pend:#E7B15C; --pend-soft:#33280f;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--ground); color:var(--body);
+    font-family:"IBM Plex Sans",system-ui,sans-serif; line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:44px 22px 72px}
+  .eyebrow{
+    font-family:"IBM Plex Mono",monospace; font-size:12px; font-weight:600;
+    letter-spacing:.16em; text-transform:uppercase; color:var(--accent-ink);
+    margin:0 0 10px;
+  }
+  h1{
+    font-family:"Archivo",sans-serif; font-weight:800; color:var(--ink);
+    font-size:clamp(28px,5vw,42px); line-height:1.05; letter-spacing:-.02em;
+    margin:0 0 12px; text-wrap:balance;
+  }
+  .lede{font-size:17px; color:var(--muted); max-width:60ch; margin:0 0 8px}
+  .phase{margin-top:40px}
+  .phase-head{display:flex; align-items:center; gap:12px; margin:0 0 4px}
+  .phase-num{
+    font-family:"Archivo",sans-serif; font-weight:800; color:var(--surface);
+    background:var(--ink); width:30px; height:30px; border-radius:8px;
+    display:grid; place-items:center; font-size:15px; flex:none;
+  }
+  .phase-title{font-family:"Archivo",sans-serif; font-weight:700; color:var(--ink); font-size:20px; margin:0}
+  .phase-sub{color:var(--muted); font-size:14px; margin:2px 0 18px 42px}
+  .chain{display:flex; flex-direction:column; gap:0; margin-left:14px; border-left:2px dashed var(--line); padding-left:28px}
+  .node{
+    position:relative; background:var(--surface); border:1px solid var(--line);
+    border-radius:14px; padding:16px 18px; box-shadow:var(--shadow); margin:9px 0;
+  }
+  .node::before{
+    content:""; position:absolute; left:-35px; top:26px; width:12px; height:12px;
+    border-radius:50%; background:var(--ink); border:3px solid var(--ground);
+  }
+  .node.staging::before{background:var(--accent)}
+  .node.proc::before{background:var(--accent)}
+  .node-top{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+  .node h3{font-family:"Archivo",sans-serif; font-weight:700; font-size:16px; color:var(--ink); margin:0}
+  .tbl{font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600; color:var(--accent-ink); background:var(--accent-soft); padding:2px 8px; border-radius:6px}
+  .node p{margin:8px 0 0; font-size:14.5px; color:var(--body)}
+  .who{font-family:"IBM Plex Mono",monospace; font-size:11.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); margin-top:10px}
+  .chip{
+    display:inline-flex; align-items:center; gap:6px; font-family:"IBM Plex Mono",monospace;
+    font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:999px; margin-left:auto;
+  }
+  .chip::before{content:""; width:7px; height:7px; border-radius:50%}
+  .chip.ok{background:var(--ok-soft); color:var(--ok)} .chip.ok::before{background:var(--ok)}
+  .chip.pend{background:var(--pend-soft); color:var(--pend)} .chip.pend::before{background:var(--pend)}
+  .fields{display:flex; flex-wrap:wrap; gap:6px; margin-top:11px}
+  .f{font-family:"IBM Plex Mono",monospace; font-size:11.5px; padding:3px 8px; border-radius:6px; border:1px solid var(--line); color:var(--muted)}
+  .f.new{border-color:var(--accent); color:var(--accent-ink); background:var(--accent-soft)}
+  .legend{margin-top:44px; background:var(--sand); border:1px solid var(--sand-line); border-radius:16px; padding:22px 22px 8px}
+  .legend h2{font-family:"Archivo",sans-serif; font-size:17px; color:var(--ink); margin:0 0 4px}
+  .legend > p{margin:0 0 16px; font-size:14px; color:var(--muted)}
+  .legrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; padding-bottom:14px}
+  .lcard{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 15px}
+  .lcard .name{font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:13.5px; color:var(--accent-ink)}
+  .lcard p{margin:7px 0 0; font-size:13.5px; color:var(--body)}
+  .lcard .src{display:block; margin-top:9px; font-family:"IBM Plex Mono",monospace; font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted)}
+  .foot{margin-top:34px; padding-top:18px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+  .foot b{color:var(--ink); font-weight:600}
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">TASK 866 · Integração VokeNext → Sankhya</p>
+  <h1>Como a imagem do CMDB chega ao contrato</h1>
+  <p class="lede">O caminho de uma imagem, do momento em que é cadastrada no VokeNext até aparecer na tela de contratos do Sankhya. Em <span style="color:var(--accent-ink);font-weight:600">rosa</span>, o que é novo nesta task.</p>
+
+  <!-- FASE 1 -->
+  <section class="phase">
+    <div class="phase-head"><span class="phase-num">1</span><h2 class="phase-title">Entrada</h2></div>
+    <p class="phase-sub">O Run2Biz envia a imagem para a “caixa de entrada” do Sankhya.</p>
+    <div class="chain">
+      <div class="node">
+        <div class="node-top"><h3>VokeNext · CMDB</h3></div>
+        <p>Uma imagem (ISO) é cadastrada ou alterada no CMDB.</p>
+        <div class="who">Origem · Run2Biz</div>
+      </div>
+      <div class="node">
+        <div class="node-top"><h3>API</h3><span class="tbl">DatasetSP.save</span><span class="chip pend">falta</span></div>
+        <p>O Run2Biz chama a API do Sankhya (<code>POST /mge/service.sbr</code>) e grava a imagem na tabela de staging — com o cliente já resolvido e a origem marcada.</p>
+        <div class="fields">
+          <span class="f">CODPARC</span><span class="f">IMAGEM</span><span class="f">PERFILIMAGEM</span>
+          <span class="f new">ORIGEM = VOKENEX</span><span class="f new">IDVOKENEX</span>
+        </div>
+        <div class="who">A implementar · Run2Biz</div>
+      </div>
+      <div class="node staging">
+        <div class="node-top"><h3>Caixa de entrada</h3><span class="tbl">AD_IMPORTAIMAGEM</span></div>
+        <p>A imagem fica aqui, aguardando. <b>O contrato não lê esta tabela.</b></p>
+        <div class="fields"><span class="f new">ORIGEM</span><span class="f new">IDVOKENEX</span><span class="f new">DHINTEGRACAO</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FASE 2 -->
+  <section class="phase">
+    <div class="phase-head"><span class="phase-num">2</span><h2 class="phase-title">Promoção</h2></div>
+    <p class="phase-sub">A procedure leva a imagem da caixa de entrada para a tabela que o contrato lê.</p>
+    <div class="chain">
+      <div class="node proc">
+        <div class="node-top"><h3>Procedure</h3><span class="tbl">SNK_PROCIMPORTARIMAGEM_CA</span><span class="chip ok">pronto</span></div>
+        <p>Lê a <code>AD_IMPORTAIMAGEM</code>: <b>cadastra</b> imagens novas e <b>atualiza</b> as que mudaram. Ao final, carimba a data da integração — a única mudança da task 866.</p>
+        <div class="fields"><span class="f new">grava DHINTEGRACAO = data/hora</span></div>
+        <div class="who">Já ativa · lado Sankhya</div>
+      </div>
+      <div class="node">
+        <div class="node-top"><h3>Tabela do contrato</h3><span class="tbl">AD_PLANEIMAGEM</span></div>
+        <p>A imagem agora existe aqui — é <b>esta</b> tabela que a tela de contratos consulta.</p>
+        <div class="who">Destino final no banco</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FASE 3 -->
+  <section class="phase">
+    <div class="phase-head"><span class="phase-num">3</span><h2 class="phase-title">Exibição</h2></div>
+    <p class="phase-sub">O usuário enxerga a imagem do CMDB.</p>
+    <div class="chain">
+      <div class="node">
+        <div class="node-top"><h3>Tela de Contratos</h3><span class="chip ok">já funciona</span></div>
+        <p>Lê a <code>AD_PLANEIMAGEM</code> e mostra a imagem vinculada ao contrato. Nada muda aqui.</p>
+        <div class="who">Sankhya</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEGENDA -->
+  <section class="legend">
+    <h2>Os três campos novos</h2>
+    <p>Criados apenas na <span class="tbl">AD_IMPORTAIMAGEM</span> (staging). Servem para rastrear a origem e a integração.</p>
+    <div class="legrid">
+      <div class="lcard">
+        <span class="name">ORIGEM</span>
+        <p>Marca que a imagem veio do VokeNext (valor <code>VOKENEX</code>).</p>
+        <span class="src">Gravado por · API (Run2Biz)</span>
+      </div>
+      <div class="lcard">
+        <span class="name">IDVOKENEX</span>
+        <p>Id estável da imagem no VokeNext, para rastreio e não reenviar duplicado.</p>
+        <span class="src">Gravado por · API (Run2Biz)</span>
+      </div>
+      <div class="lcard">
+        <span class="name">DHINTEGRACAO</span>
+        <p>Data e hora em que a procedure promoveu a imagem. Prova de “quando integrou”.</p>
+        <span class="src">Gravado por · Procedure (866)</span>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">Deduplicação por <b>CODIMG</b> · A imagem aparece na tela porque a procedure a copia para a <b>AD_PLANEIMAGEM</b> — isso já funciona; a task 866 só acrescenta o carimbo <b>DHINTEGRACAO</b>. Falta implementar o envio pela API (Run2Biz).</p>
+</div>
