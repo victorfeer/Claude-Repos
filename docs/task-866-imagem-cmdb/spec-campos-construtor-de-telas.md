@@ -5,6 +5,18 @@ Especificação para criação dos três campos de rastreio da integração de i
 
 Campos: `ORIGEM`, `IDVOKENEX`, `DHINTEGRACAO`.
 
+> **Confirmado em ambiente (`SELECT * FROM AD_IMPORTAIMAGEM`):**
+> - Instância `AD_IMPORTAIMAGEM`, categoria **INTEGRACAO API**.
+> - Colunas já existentes: `IDIMAGEMCA`, `IMAGEM`, `PERFILIMAGEM`, `CODPARC`,
+>   `DATACRIACAO`, `STATUS`, `ORIGEM`, `IDVOKENEX`, `DHINTEGRACAO`.
+> - `IDIMAGEMCA` guarda um **GUID de 32 hex** (ex.: `A034783C192D3A4F93C422A5E26D564B`)
+>   → id de imagem é **alfanumérico**. Isso trava `IDVOKENEX` como **Texto/VARCHAR**
+>   (`Inteiro` **não** atende).
+> - **Não renomear `IDIMAGEMCA`**: é a identidade da linha e a procedure
+>   `SNK_PROCIMPORTARIMAGEM_CA` (sufixo `_CA`) muito provavelmente já a usa como chave.
+>   `IDVOKENEX` é o campo dedicado ao id vindo do VokeNext — não criar outro.
+> - `DATACRIACAO` está gravado como **epoch numérico** (ex.: `1523066035`), não `DATE`.
+
 > **Regra de prefixo — ler antes de criar:**
 > - Em **tabela customizada** (`AD_IMPORTAIMAGEM` e demais `AD_*`): crie os campos com
 >   o nome **exato** — `ORIGEM`, `IDVOKENEX`, `DHINTEGRACAO` (sem prefixo).
@@ -56,9 +68,18 @@ DDL equivalente: `ORIGEM VARCHAR2(20)`
 | **Chave primária** | Não — mas criar **índice único** por `IDVOKENEX` (ou `IDVOKENEX + ORIGEM`) para impedir duplicidade |
 | **Campo de pesquisa** | Sim |
 
-**Por que Texto e não Número:** o id do VokeNext pode ser UUID/GUID alfanumérico. Texto
-absorve numérico e alfanumérico sem risco. ⟨Se o time confirmar que o id é
-estritamente numérico, trocar para **Inteiro/`NUMBER`**.⟩
+**Por que Texto e não Número (CONFIRMADO):** o id de imagem no ambiente é um **GUID
+de 32 hex** (`IDIMAGEMCA` = `A034783C192D3A4F93C422A5E26D564B`). É alfanumérico →
+**Inteiro/`NUMBER` não atende**. `IDVOKENEX` fica **Texto/VARCHAR**.
+
+**`IDIMAGEMCA` × `IDVOKENEX` — decisão de dedup (a confirmar com o time):**
+- **Hipótese A** — o VokeNext envia o **mesmo GUID** que já vai em `IDIMAGEMCA`: dedup
+  pode ser feito por `IDIMAGEMCA`; `IDVOKENEX` vira opcional e `ORIGEM='VOKENEX'` marca
+  a procedência. Índice único em `IDIMAGEMCA`.
+- **Hipótese B** — o VokeNext usa **id próprio** diferente de `IDIMAGEMCA`: `IDVOKENEX`
+  é a chave de correlação e o índice único vai **nele**.
+- Pergunta que decide: *quem preenche `IDIMAGEMCA` hoje e o VokeNext manda esse mesmo
+  GUID ou um id dele?*
 
 DDL equivalente: `IDVOKENEX VARCHAR2(100)` + `CREATE UNIQUE INDEX AK_IMPIMG_IDVOKENEX ON AD_IMPORTAIMAGEM (IDVOKENEX)`
 
