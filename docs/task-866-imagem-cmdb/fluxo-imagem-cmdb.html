@@ -150,9 +150,10 @@
     <p class="phase-sub">O usuário enxerga a imagem do CMDB.</p>
     <div class="chain">
       <div class="node">
-        <div class="node-top"><h3>Tela de Contratos</h3><span class="chip ok">já funciona</span></div>
-        <p>Lê a <code>AD_PLANEIMAGEM</code> e mostra a imagem vinculada ao contrato. Nada muda aqui.</p>
-        <div class="who">Sankhya</div>
+        <div class="node-top"><h3>Contrato · Planejamento › Rollout</h3><span class="tbl">campo Imagem</span><span class="chip ok">já funciona</span></div>
+        <p>O campo <b>“Imagem”</b> (<code>AD_PLANROL.SEQIMG</code>) é uma ligação para <code>AD_PLANEIMAGEM.SEQ</code> e mostra o <b>Cód.Imagem</b>. Só lista imagens cujo <code>CODPARC</code> bate com o parceiro do contrato (resolvendo matriz/filial).</p>
+        <div class="fields"><span class="f">filtra por CODPARC</span><span class="f">exibe CODIMG</span></div>
+        <div class="who">Sankhya · AD_PLANROL</div>
       </div>
     </div>
   </section>
