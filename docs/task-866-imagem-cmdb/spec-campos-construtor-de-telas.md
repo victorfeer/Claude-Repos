@@ -65,23 +65,21 @@ DDL equivalente: `ORIGEM VARCHAR2(20)`
 | **Casas decimais** | — |
 | **Obrigatório** | **Não** na tabela; **obrigatório na regra de integração** *(sem id não há como deduplicar)* |
 | **Valor padrão** | *(vazio)* |
-| **Chave primária** | Não — mas criar **índice único** por `IDVOKENEX` (ou `IDVOKENEX + ORIGEM`) para impedir duplicidade |
+| **Chave primária** | Não |
 | **Campo de pesquisa** | Sim |
 
 **Por que Texto e não Número (CONFIRMADO):** o id de imagem no ambiente é um **GUID
 de 32 hex** (`IDIMAGEMCA` = `A034783C192D3A4F93C422A5E26D564B`). É alfanumérico →
 **Inteiro/`NUMBER` não atende**. `IDVOKENEX` fica **Texto/VARCHAR**.
 
-**`IDIMAGEMCA` × `IDVOKENEX` — decisão de dedup (a confirmar com o time):**
-- **Hipótese A** — o VokeNext envia o **mesmo GUID** que já vai em `IDIMAGEMCA`: dedup
-  pode ser feito por `IDIMAGEMCA`; `IDVOKENEX` vira opcional e `ORIGEM='VOKENEX'` marca
-  a procedência. Índice único em `IDIMAGEMCA`.
-- **Hipótese B** — o VokeNext usa **id próprio** diferente de `IDIMAGEMCA`: `IDVOKENEX`
-  é a chave de correlação e o índice único vai **nele**.
-- Pergunta que decide: *quem preenche `IDIMAGEMCA` hoje e o VokeNext manda esse mesmo
-  GUID ou um id dele?*
+**Deduplicação (CONFIRMADO pelo fonte da procedure):** a procedure `SNK_PROCIMPORTARIMAGEM_CA`
+**deduplica por `CODIMG`** (= `IMAGEM`), não por `IDVOKENEX`. Logo, `IDVOKENEX` é campo de
+**rastreio/procedência**, e **não** precisa de índice único para o dedup funcionar.
+- Índice único em `IDVOKENEX` é **opcional** — só se você quiser garantir, no nível do
+  banco, que cada id VokeNext apareça uma vez. Se o VokeNext puder reenviar o mesmo id em
+  cenários legítimos, **não** crie o índice único (evita erro de inserção).
 
-DDL equivalente: `IDVOKENEX VARCHAR2(100)` + `CREATE UNIQUE INDEX AK_IMPIMG_IDVOKENEX ON AD_IMPORTAIMAGEM (IDVOKENEX)`
+DDL equivalente: `IDVOKENEX VARCHAR2(100)`  *(índice único opcional — ver acima)*
 
 ---
 
@@ -120,7 +118,7 @@ DDL equivalente: `DHINTEGRACAO DATE`
 | Campo | Tipo Sankhya | Tamanho | Obrigatório | Índice único | Valor gravado |
 |---|---|---|---|---|---|
 | `ORIGEM` | Texto | 20 | Não | — | `VOKENEX` (pela integração) |
-| `IDVOKENEX` | Texto | 100 | Não (mas exigido na regra) | **Sim** (dedup) | id estável da imagem |
+| `IDVOKENEX` | Texto | 100 | Não (mas exigido na regra) | Opcional (dedup real é por CODIMG) | id estável da imagem |
 | `DHINTEGRACAO` | Data/Hora | — | Não | — | `SYSDATE` na promoção |
 
 ## DDL completo (referência — se preferir criar direto no banco)
@@ -136,15 +134,17 @@ COMMENT ON COLUMN AD_IMPORTAIMAGEM.ORIGEM       IS 'Origem do registro. VOKENEX 
 COMMENT ON COLUMN AD_IMPORTAIMAGEM.IDVOKENEX    IS 'Id estavel da imagem no VokeNext. Chave de deduplicacao.';
 COMMENT ON COLUMN AD_IMPORTAIMAGEM.DHINTEGRACAO IS 'Data/hora da promocao/integracao. Nulo = ainda nao integrado.';
 
-CREATE UNIQUE INDEX AK_IMPIMG_IDVOKENEX ON AD_IMPORTAIMAGEM (IDVOKENEX);
+-- Índice único em IDVOKENEX é OPCIONAL (o dedup real da procedure é por CODIMG).
+-- CREATE UNIQUE INDEX AK_IMPIMG_IDVOKENEX ON AD_IMPORTAIMAGEM (IDVOKENEX);
 ```
 
 > Ao criar pelo Construtor de Telas, **não** rode este DDL à mão — o próprio Construtor
 > aplica a alteração no banco ao salvar. O bloco acima é só referência de tipos/comentários.
 
-## Pontos a confirmar com o time
+## Pontos confirmados
 
-- [ ] Tabela de destino ("que o contrato lê") é **padrão** ou **AD_**? Define o prefixo.
-- [ ] `IDVOKENEX` é numérico ou UUID? Define Texto vs. Inteiro.
-- [ ] Tamanho real de `IDVOKENEX` no VokeNext (para dimensionar o `VARCHAR2`).
-- [ ] Índice único deve ser por `IDVOKENEX` sozinho ou `IDVOKENEX + ORIGEM`?
+- [x] Campos criados **só na `AD_IMPORTAIMAGEM`** (custom, sem prefixo `AD_`). A
+      `AD_PLANEIMAGEM` não recebe colunas novas.
+- [x] `IDVOKENEX` é **UUID/GUID** → **Texto/VARCHAR** (Inteiro não atende).
+- [x] Dedup da procedure é por **`CODIMG`**; índice único em `IDVOKENEX` é opcional.
+- [ ] Tamanho real do id do VokeNext (100 é folgado para um GUID de 36 chars; confirmar se cabe).
