@@ -1,0 +1,53 @@
+name: Espelhar para o Azure DevOps
+
+# Espelho unidirecional: GitHub -> Azure DevOps.
+# A cada push (em qualquer branch), tag criada ou branch/tag removida,
+# este workflow replica TODAS as branches e tags para o repositorio do Azure DevOps.
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+  delete:
+  workflow_dispatch:
+
+# Garante que dois espelhamentos nao rodem ao mesmo tempo (evita push concorrente).
+concurrency:
+  group: mirror-azure-devops
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clonar espelho completo do repositorio do GitHub
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git clone --mirror \
+            "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" \
+            mirror.git
+
+      - name: Enviar branches e tags para o Azure DevOps
+        working-directory: mirror.git
+        env:
+          AZURE_DEVOPS_PAT: ${{ secrets.AZURE_DEVOPS_PAT }}
+          AZURE_DEVOPS_REPO_URL: ${{ secrets.AZURE_DEVOPS_REPO_URL }}
+        run: |
+          if [ -z "${AZURE_DEVOPS_PAT}" ] || [ -z "${AZURE_DEVOPS_REPO_URL}" ]; then
+            echo "::error::Configure os secrets AZURE_DEVOPS_PAT e AZURE_DEVOPS_REPO_URL no repositorio."
+            exit 1
+          fi
+
+          # Monta a URL de destino com autenticacao via PAT.
+          # AZURE_DEVOPS_REPO_URL deve vir SEM protocolo, ex.:
+          #   dev.azure.com/minha-org/meu-projeto/_git/meu-repo
+          dest="https://azure-devops:${AZURE_DEVOPS_PAT}@${AZURE_DEVOPS_REPO_URL}"
+
+          # Espelha apenas branches e tags (nao envia refs internas do GitHub, como refs/pull/*).
+          # --prune remove no destino as branches/tags que ja nao existem no GitHub.
+          git push --prune "${dest}" \
+            'refs/heads/*:refs/heads/*' \
+            'refs/tags/*:refs/tags/*'
