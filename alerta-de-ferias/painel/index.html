@@ -1,0 +1,780 @@
+<!--
+  Tela: Alerta de Ferias a Vencer  |  Voke / Sankhya
+  Identidade visual: Voke (bege #E3DDC9, azul marinho #1B3D6D, rosa #F3A0C3)
+  Integracao: POST no servico MGE DbExplorerSP.executeQuery (padrao validado),
+  rodando SELECT direto contra as tabelas de ferias. Nao depende de Action Button.
+  Linha expande ao clicar (accordion) e traz o botao "Abrir requisicao de ferias",
+  que lanca a tela de Requisicoes (Pessoal+ > Rotinas Folha > Requisicoes).
+  Fora do Sankhya (teste local no navegador) o fetch falha e cai em modo DEMO.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alerta de Férias a Vencer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bege: #E3DDC9;
+    --bege-claro: #ECE7D6;
+    --bege-escuro: #D6CFB6;
+    --marinho: #1B3D6D;
+    --marinho-claro: #2C5590;
+    --marinho-suave: #B9C7DA;
+    --rosa: #F3A0C3;
+    --rosa-escuro: #D9709F;
+    --rosa-texto: #7A2F50;
+    --risco: #7A2F50;
+    --risco-bg: #F6E3EC;
+    --risco-pill: #F0CBDD;
+    --critico: #C0392B;
+    --critico-bg: #FBEAE7;
+    --atencao: #B07A0B;
+    --atencao-bg: #FAF0DA;
+    --ok: #2E7D52;
+    --ok-bg: #E1EFE6;
+    --fonte-display: 'Space Grotesk', Arial, sans-serif;
+    --fonte-mono: 'Space Mono', monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bege);
+    color: var(--marinho);
+    font-family: var(--fonte-display);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .topo {
+    position: relative;
+    padding: 28px 32px 22px;
+    border-bottom: 1px solid var(--marinho);
+  }
+
+  .marca { display: flex; align-items: baseline; gap: 14px; margin-bottom: 4px; }
+  .marca-nome { font-weight: 700; font-size: 26px; letter-spacing: -0.5px; color: var(--marinho); }
+  .marca-separador { width: 1px; height: 22px; background: var(--marinho); opacity: 0.4; }
+  .titulo-modulo {
+    font-family: var(--fonte-mono); font-size: 13px; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--marinho-claro);
+  }
+
+  h1 { font-weight: 500; font-size: 28px; margin: 18px 0 6px; color: var(--marinho); }
+  h1 .destaque { font-family: var(--fonte-mono); font-weight: 700; letter-spacing: 1px; }
+  .subtitulo { font-size: 14px; color: var(--marinho-claro); max-width: 640px; margin: 0; }
+
+  .contorno-circuito { position: absolute; right: 32px; top: 0; height: 100%; width: 220px; opacity: 0.5; pointer-events: none; }
+
+  .corpo { padding: 24px 32px 40px; }
+
+  .painel {
+    background: var(--bege-claro); border: 1px solid var(--marinho);
+    border-radius: 2px; padding: 18px 20px; margin-bottom: 20px;
+  }
+  .painel-filtros { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; }
+  .campo { display: flex; flex-direction: column; gap: 6px; min-width: 160px; }
+  .campo.campo-empresa { min-width: 240px; }
+  .campo.campo-busca { flex: 1; min-width: 220px; }
+  .campo label {
+    font-family: var(--fonte-mono); font-size: 10px; letter-spacing: 0.8px;
+    text-transform: uppercase; color: var(--marinho-claro);
+  }
+  .campo select, .campo input {
+    border: 1px solid var(--marinho); background: #fff; color: var(--marinho);
+    padding: 9px 10px; border-radius: 2px; font-family: var(--fonte-display);
+    font-size: 13px; outline: none;
+  }
+  .campo select:focus, .campo input:focus { border-color: var(--rosa-escuro); box-shadow: 0 0 0 2px var(--rosa); }
+
+  .btn-primario {
+    border: none; background: var(--rosa); color: var(--rosa-texto);
+    font-family: var(--fonte-display); font-weight: 500; font-size: 13px;
+    letter-spacing: 0.3px; padding: 10px 22px; border-radius: 2px; cursor: pointer;
+    text-transform: uppercase; white-space: nowrap; transition: background 0.15s ease;
+  }
+  .btn-primario:hover { background: var(--rosa-escuro); color: #fff; }
+  .btn-secundario {
+    border: 1px solid var(--marinho); background: transparent; color: var(--marinho);
+    font-family: var(--fonte-display); font-size: 13px; padding: 9px 16px;
+    border-radius: 2px; cursor: pointer; white-space: nowrap;
+  }
+  .btn-secundario:hover { background: var(--marinho); color: #fff; }
+
+  .resumo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .resumo-card { background: var(--bege-claro); border: 1px solid var(--marinho); border-radius: 2px; padding: 14px 16px; }
+  .resumo-card .rotulo {
+    font-family: var(--fonte-mono); font-size: 10px; letter-spacing: 0.6px;
+    text-transform: uppercase; color: var(--marinho-claro); margin: 0 0 6px;
+  }
+  .resumo-card .valor { font-family: var(--fonte-mono); font-size: 26px; font-weight: 700; margin: 0; }
+  .resumo-card.risco   .valor { color: var(--risco); }
+  .resumo-card.critico .valor { color: var(--critico); }
+  .resumo-card.atencao .valor { color: var(--atencao); }
+  .resumo-card.ok      .valor { color: var(--ok); }
+
+  /* KPIs clicaveis: cada card filtra a tabela pela sua faixa. */
+  .resumo-card { cursor: pointer; user-select: none; transition: box-shadow .12s ease, transform .12s ease; }
+  .resumo-card:hover { box-shadow: 0 2px 0 var(--marinho); }
+  .resumo-card:focus-visible { outline: 2px solid var(--rosa-escuro); outline-offset: 2px; }
+  .resumo-card.ativo { box-shadow: 0 0 0 2px var(--rosa), 0 2px 0 var(--marinho); transform: translateY(-1px); }
+  .resumo-card.ativo .rotulo::after { content: " ✓"; color: var(--rosa-escuro); }
+
+  .tabela-wrap { border: 1px solid var(--marinho); border-radius: 2px; overflow: auto; max-height: 62vh; background: #fff; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  thead th {
+    position: sticky; top: 0; background: var(--marinho); color: var(--bege-claro);
+    font-family: var(--fonte-mono); font-size: 10.5px; letter-spacing: 0.4px;
+    text-transform: uppercase; text-align: left; padding: 10px 12px; white-space: nowrap; z-index: 1;
+  }
+  thead th.col-caret { width: 26px; padding-left: 14px; }
+  tbody td { padding: 9px 12px; border-bottom: 1px solid var(--bege-escuro); white-space: nowrap; color: var(--marinho); }
+
+  /* Linha-resumo (clicavel) + tinta por faixa de urgencia. */
+  tr.linha { cursor: pointer; }
+  tr.linha > td { transition: filter .12s ease; }
+  tr.linha-risco   > td { background: var(--risco-bg); }
+  tr.linha-critico > td { background: var(--critico-bg); }
+  tr.linha-atencao > td { background: var(--atencao-bg); }
+  tr.linha-ok      > td { background: #fff; }
+  tr.linha:hover > td { filter: brightness(0.97); }
+
+  .caret {
+    display: inline-block; width: 0; height: 0; margin-left: 2px;
+    border-left: 6px solid var(--marinho); border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent; transition: transform .12s ease; vertical-align: middle;
+  }
+  tr.linha.aberta .caret { transform: rotate(90deg); }
+
+  .pill {
+    display: inline-block; padding: 3px 10px; border-radius: 12px;
+    font-family: var(--fonte-mono); font-size: 10.5px; font-weight: 700;
+    letter-spacing: 0.3px; text-transform: uppercase;
+  }
+  .pill-risco { background: var(--risco-pill); color: var(--risco); }
+  .pill-critico { background: var(--critico-bg); color: var(--critico); }
+  .pill-atencao { background: var(--atencao-bg); color: var(--atencao); }
+  .pill-ok { background: var(--ok-bg); color: var(--ok); }
+
+  .nome-func { font-weight: 500; }
+  .cod-func { color: var(--marinho-claro); font-size: 11px; }
+  .num { text-align: right; font-family: var(--fonte-mono); }
+
+  /* Detalhe expandido (accordion). */
+  tr.detalhe > td { padding: 0; background: #fff; border-bottom: 1px solid var(--bege-escuro); }
+  .detalhe-box { padding: 16px 20px 18px; border-left: 3px solid var(--rosa); }
+  .detalhe-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px 24px; }
+  .detalhe-item .rotulo {
+    font-family: var(--fonte-mono); font-size: 10px; letter-spacing: 0.6px;
+    text-transform: uppercase; color: var(--marinho-claro); margin: 0 0 3px;
+  }
+  .detalhe-item .dado { font-size: 13px; color: var(--marinho); white-space: normal; }
+  .detalhe-acao { display: flex; justify-content: flex-end; margin-top: 16px; }
+  .btn-drill {
+    background: var(--marinho); color: #fff; border: none; border-radius: 3px;
+    padding: 10px 18px; font-family: var(--fonte-display); font-size: 13px; font-weight: 500;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: background 0.15s ease;
+  }
+  .btn-drill:hover { background: var(--marinho-claro); }
+  .btn-drill .seta { font-size: 14px; line-height: 1; }
+
+  .estado-vazio, .estado-carregando, .estado-erro { padding: 48px 20px; text-align: center; color: var(--marinho-claro); font-size: 13px; white-space: normal; }
+  .estado-erro { color: var(--critico); }
+
+  @media (max-width: 860px) {
+    .resumo { grid-template-columns: repeat(2, 1fr); }
+    .detalhe-grid { grid-template-columns: repeat(2, 1fr); }
+    .contorno-circuito { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <svg class="contorno-circuito" viewBox="0 0 220 140" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <path d="M0 0 V40 H50 V0" fill="none" stroke="#1B3D6D" stroke-width="1.5"/>
+    <path d="M70 0 V25 H120 V0" fill="none" stroke="#1B3D6D" stroke-width="1.5"/>
+    <path d="M140 0 V40 H220" fill="none" stroke="#1B3D6D" stroke-width="1.5"/>
+    <circle cx="50" cy="40" r="2.5" fill="#1B3D6D"/>
+    <circle cx="120" cy="25" r="2.5" fill="#1B3D6D"/>
+  </svg>
+
+  <div class="marca">
+    <span class="marca-nome">voke</span>
+    <span class="marca-separador"></span>
+    <span class="titulo-modulo">RH · Gestão de Férias</span>
+  </div>
+
+  <h1>Alerta de <span class="destaque">FÉRIAS</span> a vencer</h1>
+  <p class="subtitulo">Funcionários cujo limite legal para início do gozo de férias está se aproximando do vencimento, com base no período aquisitivo registrado.</p>
+</header>
+
+<main class="corpo">
+
+  <section class="painel">
+    <div class="painel-filtros">
+      <div class="campo campo-empresa">
+        <label for="f-emp">Empresa</label>
+        <select id="f-emp"><option value="">Todas as empresas</option></select>
+      </div>
+      <div class="campo campo-busca">
+        <label for="f-func">Funcionário</label>
+        <input id="f-func" type="text" placeholder="Código ou nome">
+      </div>
+      <div class="campo" style="min-width: 130px;">
+        <label for="f-dias">Antecedência (dias)</label>
+        <input id="f-dias" type="number" value="90" min="1" max="365">
+      </div>
+      <button class="btn-primario" id="btn-buscar">Buscar</button>
+      <button class="btn-secundario" id="btn-exportar">Exportar</button>
+    </div>
+  </section>
+
+  <section class="resumo" aria-label="Resumo dos alertas — clique num card para filtrar">
+    <div class="resumo-card risco" data-faixa="risco" role="button" tabindex="0" aria-pressed="false" title="Filtrar só Risco de acumular">
+      <p class="rotulo">Risco de acumular</p>
+      <p class="valor" id="kpi-risco">–</p>
+    </div>
+    <div class="resumo-card critico" data-faixa="critico" role="button" tabindex="0" aria-pressed="false" title="Filtrar só Crítico">
+      <p class="rotulo">Crítico · até 15 dias</p>
+      <p class="valor" id="kpi-critico">–</p>
+    </div>
+    <div class="resumo-card atencao" data-faixa="atencao" role="button" tabindex="0" aria-pressed="false" title="Filtrar só Atenção">
+      <p class="rotulo">Atenção · até 30 dias</p>
+      <p class="valor" id="kpi-atencao">–</p>
+    </div>
+    <div class="resumo-card ok" data-faixa="ok" role="button" tabindex="0" aria-pressed="false" title="Filtrar só Dentro do prazo">
+      <p class="rotulo">Dentro do prazo</p>
+      <p class="valor" id="kpi-ok">–</p>
+    </div>
+  </section>
+
+  <section class="tabela-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="col-caret" aria-label="Expandir"></th>
+          <th>Urgência</th>
+          <th>Funcionário</th>
+          <th>Líder</th>
+          <th>Data vencimento</th>
+          <th>Dias p/ vencer</th>
+        </tr>
+      </thead>
+      <tbody id="corpo-tabela">
+        <tr><td colspan="6" class="estado-carregando">Carregando alertas...</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+<script>
+  "use strict";
+
+  /* ======================================================================
+   * INTEGRACAO COM O BANCO - POST no servico MGE do Sankhya.
+   * Usa DbExplorerSP.executeQuery (padrao validado), NAO um Action Button.
+   * Ajustar o prefixo /mge/ apenas se o ambiente publicar o MGE em outro path.
+   * ==================================================================== */
+  var ENDPOINT = "/mge/service.sbr?serviceName=DbExplorerSP.executeQuery&outputType=json";
+
+  /* Drill-through: tela de Requisicoes (Pessoal+ > Rotinas Folha > Requisicoes).
+   * IDs confirmados no ambiente erp-hml (dialogo "Configurar tela"). */
+  var REQ_RESOURCE_ID = "br.com.sankhya.rh.Requisicoes";
+  var REQ_GLOBAL_ID   = "BFF43734574F1D0937C6FA91C0FF9D58";
+
+  var elCorpo = document.getElementById("corpo-tabela");
+  var elBtnBuscar = document.getElementById("btn-buscar");
+  var elBtnExportar = document.getElementById("btn-exportar");
+  var elFEmp = document.getElementById("f-emp");
+
+  var ultimaConsulta = [];
+  var modoDemo = false;
+  var faixaAtiva = "todos";
+
+  /* ---------------------------------------------------------------------
+   * Fila anti-concorrencia: o Sankhya cancela chamadas simultaneas da mesma
+   * sessao HTTP. Toda query passa por esta fila (uma comeca so apos a anterior).
+   * ------------------------------------------------------------------- */
+  var filaDb = Promise.resolve();
+  function enfileirar(fn) {
+    var p = filaDb.then(fn, fn);
+    filaDb = p.catch(function () {});
+    return p;
+  }
+
+  /* Decodifica tentando UTF-8 estrito e, se falhar, ISO-8859-1 (Latin1). */
+  function decodificar(buffer) {
+    try { return new TextDecoder("utf-8", { fatal: true }).decode(buffer); }
+    catch (e) { return new TextDecoder("iso-8859-1").decode(buffer); }
+  }
+
+  /* Executa um SQL e devolve array de objetos {NOMECAMPO: valor}. */
+  function dbQuery(sql) {
+    return enfileirar(function () {
+      return fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serviceName: "DbExplorerSP.executeQuery", requestBody: { sql: sql } })
+      }).then(function (resp) {
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        return resp.arrayBuffer();
+      }).then(function (buf) {
+        var texto = decodificar(buf);
+        var data;
+        try { data = JSON.parse(texto); }
+        catch (e) { throw new Error("Resposta não-JSON do serviço (sessão expirada ou endpoint incorreto)."); }
+        var status = data.serviceResponse || data.status;
+        if (status && String(status).toUpperCase() !== "OK" && data.statusMessage) throw new Error(data.statusMessage);
+        var rb = data.responseBody || {};
+        var meta = rb.fieldsMetadata || [];
+        var rows = rb.rows || [];
+        var nomes = meta.map(function (m) { return (m.name || "").toUpperCase(); });
+        return rows.map(function (linha) {
+          var obj = {};
+          for (var i = 0; i < nomes.length; i++) obj[nomes[i]] = linha[i];
+          return obj;
+        });
+      });
+    });
+  }
+
+  function esc(v) { return String(v == null ? "" : v).replace(/'/g, "''"); }
+  function ehNumero(v) { return v != null && v !== "" && /^\d+$/.test(String(v).trim()); }
+
+  /* SQL principal: espelha a regra da VW_ALERTA_FERIAS_A_VENCER com a janela
+   * (dias) e os filtros parametrizados. Datas via TO_CHAR para o JS interpretar. */
+  function montarSqlPrincipal(f) {
+    var dias = Number(f.dias) || 90;
+    var filtros = "";
+    if (ehNumero(f.codEmp)) filtros += " AND FUN.CODEMP = " + Number(f.codEmp);
+    if (f.func) {
+      if (ehNumero(f.func)) filtros += " AND FUN.CODFUNC = " + Number(f.func);
+      else filtros += " AND UPPER(FUN.NOMEFUNC) LIKE '%" + esc(f.func).toUpperCase() + "%'";
+    }
+    return [
+      "SELECT FUN.CODEMP, EMP.RAZAOSOCIAL, FUN.CODFUNC, FUN.NOMEFUNC,",
+      "       FUN.CODDEP, DEP.DESCRDEP, FUN.CODCARGO, CAR.DESCRCARGO,",
+      "       FUN.AD_LIDER, FUN.AD_EMAILLIDER,",
+      "       TO_CHAR(FER.DTINIAQUI,'YYYY-MM-DD\"T\"HH24:MI:SS') AS DTINIAQUI,",
+      "       TO_CHAR(FER.DTFINAQUI,'YYYY-MM-DD\"T\"HH24:MI:SS') AS DTFINAQUI,",
+      "       TO_CHAR(ADD_MONTHS(FER.DTFINAQUI, 12),'YYYY-MM-DD\"T\"HH24:MI:SS') AS LIMGOZO,",
+      "       ADD_MONTHS(FER.DTFINAQUI, 12) - TRUNC(SYSDATE) AS DIAS_PARA_VENCER,",
+      "       FER.NUMDIASFER,",
+      "       CASE WHEN EXISTS (SELECT 1 FROM TFPREQ REQ INNER JOIN TFPREQADM ADM ON ADM.ID = REQ.ORIGEMID",
+      "                          WHERE REQ.ORIGEMTIPO = 'V' AND REQ.STATUS = 1 AND REQ.CODFUNC = FUN.CODFUNC)",
+      "            THEN 'N' ELSE 'S' END AS ENVIAR_SINO",
+      "FROM   TFPFER FER",
+      "INNER JOIN TFPFUN FUN ON FUN.CODEMP = FER.CODEMP AND FUN.CODFUNC = FER.CODFUNC",
+      "INNER JOIN TSIEMP EMP ON EMP.CODEMP = FUN.CODEMP",
+      "LEFT  JOIN TFPDEP DEP ON DEP.CODDEP = FUN.CODDEP",
+      "LEFT  JOIN TFPCAR CAR ON CAR.CODCARGO = FUN.CODCARGO",
+      "WHERE  EMP.CODEMP >= 20",
+      "  AND  FUN.SITUACAO NOT IN (0, 2, 8, 9)",
+      "  AND  FUN.VINCULO  NOT IN (80, 90)",
+      "  AND  FUN.DTDEM IS NULL",
+      "  AND  ADD_MONTHS(FER.DTFINAQUI, 12) BETWEEN TRUNC(SYSDATE) - 30 AND TRUNC(SYSDATE) + " + dias,
+      "  AND  FER.NUMDIASFER <> 0",
+      "  AND  FER.DTSAIDA    IS NULL",
+      "  AND  FER.DTPREVISTA IS NULL",
+      "  AND  NVL(FER.ATUALFERGOZ, 'N') <> 'S'",
+      "  AND  NOT EXISTS (SELECT 1 FROM TFPREQ REQ INNER JOIN TFPREQADM ADM ON ADM.ID = REQ.ORIGEMID",
+      "                    WHERE REQ.ORIGEMTIPO = 'V' AND REQ.STATUS = 2 AND REQ.CODFUNC = FUN.CODFUNC)",
+      filtros,
+      "ORDER BY DIAS_PARA_VENCER"
+    ].join("\n");
+  }
+
+  function mapear(r) {
+    return {
+      codEmp: r.CODEMP,
+      razaoSocial: r.RAZAOSOCIAL,
+      nomeFunc: r.NOMEFUNC,
+      codFunc: r.CODFUNC,
+      descrDep: r.DESCRDEP,
+      descrCargo: r.DESCRCARGO,
+      lider: r.AD_LIDER || r.AD_EMAILLIDER,
+      dtIniAqui: r.DTINIAQUI,
+      dtFinAqui: r.DTFINAQUI,
+      numDiasFer: r.NUMDIASFER,
+      abonoPec: r.ABONOPEC,
+      faltas: r.FALTAS,
+      limGozo: r.LIMGOZO,
+      diasParaVencer: r.DIAS_PARA_VENCER != null ? Number(r.DIAS_PARA_VENCER) : null
+    };
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  /* Faixa de urgencia:
+   *  - dias negativos  -> "risco" (ja passou do vencimento estimado: risco de
+   *                        acumular 2o periodo, vedado pela CLT)
+   *  - ate 15  -> "critico"
+   *  - ate 30  -> "atencao"
+   *  - > 30    -> "ok" (dentro do prazo)  */
+  function faixaDe(l) {
+    var d = (l.diasParaVencer == null ? 999 : l.diasParaVencer);
+    if (d < 0)  return "risco";
+    if (d <= 15) return "critico";
+    if (d <= 30) return "atencao";
+    return "ok";
+  }
+  var ROTULO_FAIXA = { risco: "Risco", critico: "Crítico", atencao: "Atenção", ok: "Ok" };
+
+  function fmtData(iso) {
+    if (!iso) return "-";
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("pt-BR");
+  }
+
+  function atualizarKpis(linhas) {
+    var c = { risco: 0, critico: 0, atencao: 0, ok: 0 };
+    linhas.forEach(function (l) { c[faixaDe(l)]++; });
+    document.getElementById("kpi-risco").textContent = c.risco;
+    document.getElementById("kpi-critico").textContent = c.critico;
+    document.getElementById("kpi-atencao").textContent = c.atencao;
+    document.getElementById("kpi-ok").textContent = c.ok;
+  }
+
+  function itemDetalhe(rotulo, dado) {
+    return '<div class="detalhe-item"><p class="rotulo">' + rotulo + '</p><p class="dado">' + dado + '</p></div>';
+  }
+
+  function renderTabela(linhas) {
+    if (!linhas || linhas.length === 0) {
+      elCorpo.innerHTML = '<tr><td colspan="6" class="estado-vazio">Nenhum alerta encontrado para os filtros informados.' +
+        (modoDemo ? ' (modo demonstração — fora do Sankhya)' : '') + '</td></tr>';
+      return;
+    }
+    elCorpo.innerHTML = linhas.map(function (l, i) {
+      var faixa = faixaDe(l);
+      var detalhe =
+        '<div class="detalhe-box">' +
+          '<div class="detalhe-grid">' +
+            itemDetalhe("Empresa", escapeHtml(l.razaoSocial || "-")) +
+            itemDetalhe("Departamento", escapeHtml(l.descrDep || "-")) +
+            itemDetalhe("Cargo", escapeHtml(l.descrCargo || "-")) +
+            itemDetalhe("Dias de férias", escapeHtml(l.numDiasFer == null ? "-" : l.numDiasFer)) +
+            itemDetalhe("Início aquisitivo", fmtData(l.dtIniAqui)) +
+            itemDetalhe("Fim aquisitivo", fmtData(l.dtFinAqui)) +
+            itemDetalhe("Abono", escapeHtml(l.abonoPec == null ? 0 : l.abonoPec)) +
+            itemDetalhe("Faltas", escapeHtml(l.faltas == null ? 0 : l.faltas)) +
+          '</div>' +
+          '<div class="detalhe-acao">' +
+            '<button type="button" class="btn-drill" data-acao="requisicao" ' +
+              'data-codemp="' + escapeHtml(l.codEmp) + '" data-codfunc="' + escapeHtml(l.codFunc) + '">' +
+              'Abrir requisição de férias <span class="seta">↗</span>' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+      return '' +
+        '<tr class="linha linha-' + faixa + '" data-idx="' + i + '" role="button" tabindex="0" aria-expanded="false">' +
+          '<td class="col-caret"><span class="caret"></span></td>' +
+          '<td><span class="pill pill-' + faixa + '">' + ROTULO_FAIXA[faixa] + '</span></td>' +
+          '<td><span class="nome-func">' + escapeHtml(l.nomeFunc || "-") + '</span><br><span class="cod-func">' + escapeHtml(l.codFunc || "-") + '</span></td>' +
+          '<td>' + escapeHtml(l.lider || "-") + '</td>' +
+          '<td>' + fmtData(l.limGozo) + '</td>' +
+          '<td class="num">' + escapeHtml(l.diasParaVencer == null ? "-" : l.diasParaVencer) + '</td>' +
+        '</tr>' +
+        '<tr class="detalhe" data-detalhe="' + i + '" style="display:none;"><td colspan="6">' + detalhe + '</td></tr>';
+    }).join("");
+  }
+
+  /* Expande/colapsa a linha clicada (accordion). */
+  function alternarLinha(tr) {
+    var idx = tr.getAttribute("data-idx");
+    var det = elCorpo.querySelector('tr.detalhe[data-detalhe="' + idx + '"]');
+    if (!det) return;
+    var abrir = det.style.display === "none";
+    det.style.display = abrir ? "" : "none";
+    tr.classList.toggle("aberta", abrir);
+    tr.setAttribute("aria-expanded", abrir ? "true" : "false");
+  }
+
+  /* Delegação de eventos: clique/teclado na linha alterna; clique no botão abre. */
+  elCorpo.addEventListener("click", function (ev) {
+    var btn = ev.target.closest(".btn-drill");
+    if (btn) {
+      ev.stopPropagation();
+      abrirRequisicoes(btn.getAttribute("data-codemp"), btn.getAttribute("data-codfunc"));
+      return;
+    }
+    var tr = ev.target.closest("tr.linha");
+    if (tr) alternarLinha(tr);
+  });
+  elCorpo.addEventListener("keydown", function (ev) {
+    if (ev.key !== "Enter" && ev.key !== " " && ev.key !== "Spacebar") return;
+    var tr = ev.target.closest("tr.linha");
+    if (tr) { ev.preventDefault(); alternarLinha(tr); }
+  });
+
+  /* ---------------------------------------------------------------------
+   * Abre a tela de Requisicoes. O Sankhya Om nao expoe um deep-link unico e
+   * estavel para um gadget HTML5 abrir outra tela: tentamos os mecanismos
+   * conhecidos, em ordem. Se no seu ambiente nenhum abrir, ajuste ESTA funcao
+   * com a chamada que a sua versao ja usava (Global ID = REQ_GLOBAL_ID).
+   * ------------------------------------------------------------------- */
+  /* Escopos pai/top acessíveis (o gadget roda dentro de iframes do Sankhya). */
+  function escoposPai() {
+    var lista = [];
+    function add(w) { try { if (w && lista.indexOf(w) < 0) lista.push(w); } catch (e) {} }
+    try { add(window.parent); } catch (e) {}
+    try { add(window.top); } catch (e) {}
+    try { var w = window; for (var i = 0; i < 6; i++) { if (w.parent && w.parent !== w) { add(w.parent); w = w.parent; } else break; } } catch (e) {}
+    return lista;
+  }
+
+  /* Descobre, nos escopos pai/top, chaves que pareçam de navegação. Loga e retorna. */
+  function descobrirNavegacao() {
+    var achados = [], re = /abrir|open|show|recurso|resource|tela|screen|navega|mdi|workspace|gadget|aplica|app/i;
+    escoposPai().forEach(function (w, idx) {
+      var keys = [];
+      try { keys = Object.keys(w); } catch (e) { return; } // cross-origin -> ignora
+      try { console.log("[Alerta Férias] TODAS as chaves do escopo " + idx + ":", keys); } catch (e) {}
+      keys.forEach(function (k) {
+        if (re.test(k)) { var t = "?"; try { t = typeof w[k]; } catch (e) {} achados.push({ escopo: idx, chave: k, tipo: t }); }
+      });
+    });
+    try { console.log("[Alerta Férias] Candidatos de navegação:", achados); } catch (e) {}
+    return achados;
+  }
+
+  /* Abre a tela de Requisições na MESMA ABA do navegador e na MESMA SESSÃO.
+   * Método: aponta o hash da aba atual para o recurso e recarrega a própria aba.
+   * Como é a MESMA aba, o sessionStorage (onde fica a sessão do Sankhya) é
+   * preservado — logo NÃO pede login. Ao recarregar, a SPA sobe direto no
+   * recurso via o deep-link system.jsp#app/<base64(resourceID)>.
+   * (Aba nova do navegador foi descartada de propósito: aba nova zera o
+   *  sessionStorage e cai na tela de login.) */
+  function abrirRequisicoes(codEmp, codFunc) {
+    if (modoDemo) {
+      alert("Modo demonstração (fora do Sankhya).\nEm produção abriria: " + REQ_RESOURCE_ID +
+            "\nFuncionário: emp " + codEmp + " / func " + codFunc);
+      return;
+    }
+
+    // Método NATIVO do Sankhya Om para abrir uma tela como ABA INTERNA do
+    // workspace (mesma sessão, sem aba do navegador, sem reload):
+    //     workspace.openActivityResourceID(resourceID)
+    //
+    // PONTO-CHAVE (descoberto nos logs do console do próprio ambiente): o objeto
+    // `workspace` NÃO está na cadeia de frames-pai do gadget — ele vive num
+    // iframe IRMÃO, alcançável DESCENDO a partir do topo (top -> iframes filhos
+    // -> contentWindow.workspace). A versão anterior só subia (parent -> top) e
+    // por isso nunca achava o workspace certo -> "não abre nada".
+    // Aqui coletamos TODO workspace acessível: subindo E descendo por todos os
+    // iframes, a partir da janela mais alta que conseguimos acessar.
+    var METODOS = ["openActivityResourceID", "openAppActivity", "openActivity"];
+
+    var workspaces = [];
+    var janelasVistas = [];
+
+    function registrarWorkspace(win) {
+      try {
+        var ws = win.workspace;
+        if (ws && workspaces.indexOf(ws) < 0) workspaces.push(ws);
+      } catch (e) {}
+    }
+
+    // Desce recursivamente por todos os iframes acessíveis de uma janela.
+    function varrer(win, prof) {
+      if (!win || prof > 8) return;
+      try { if (janelasVistas.indexOf(win) >= 0) return; janelasVistas.push(win); } catch (e) { return; }
+      registrarWorkspace(win);
+      var frames;
+      try { frames = win.document.querySelectorAll("iframe"); } catch (e) { return; } // cross-origin
+      for (var i = 0; i < frames.length; i++) {
+        var filho = null;
+        try { filho = frames[i].contentWindow; } catch (e) {}
+        if (filho) varrer(filho, prof + 1);
+      }
+    }
+
+    // 1) Sobe até a janela mais alta acessível e varre TUDO descendo dali.
+    var topo = window;
+    try { while (topo.parent && topo.parent !== topo) topo = topo.parent; } catch (e) {}
+    varrer(topo, 0);
+    // 2) Garante também a própria janela e os pais diretos (redundância barata).
+    varrer(window, 0);
+
+    try { console.log("[Alerta Férias] workspaces encontrados:", workspaces.length); } catch (e) {}
+
+    /* Conta as abas do workspace ANTES de tentar abrir. Serve para DETECTAR se a
+     * chamada nativa realmente abriu algo. Neste ambiente o openActivityResourceID
+     * executa sem erro e NÃO abre nada (no-op) — por isso "não deu erro" não basta
+     * como prova; é preciso verificar se surgiu aba. */
+    function contarAbas() {
+      var total = 0;
+      for (var i = 0; i < janelasVistas.length; i++) {
+        try {
+          var d = janelasVistas[i].document;
+          total += d.querySelectorAll("[id^='tab'],.tab-item,.gwt-TabLayoutPanelTab,li[role='tab']").length;
+        } catch (e) {}
+      }
+      return total;
+    }
+
+    var abasAntes = contarAbas();
+
+    /* 1) Tenta o caminho nativo (aba interna, sem reload). */
+    for (var s = 0; s < workspaces.length; s++) {
+      var ws = workspaces[s];
+      for (var m = 0; m < METODOS.length; m++) {
+        var fn = null; try { fn = ws[METODOS[m]]; } catch (e) {}
+        if (typeof fn !== "function") continue;
+        try { console.log("[Alerta Férias] tentando workspace." + METODOS[m]); } catch (e) {}
+        try { fn.call(ws, REQ_RESOURCE_ID); } catch (e1) {}
+        try { fn.call(ws, REQ_RESOURCE_ID, REQ_GLOBAL_ID); } catch (e2) {}
+      }
+    }
+
+    /* 2) Verifica se abriu de fato. Se abriu, acabou — nada de reload. */
+    if (contarAbas() > abasAntes) {
+      try { console.log("[Alerta Férias] abriu como aba interna."); } catch (e) {}
+      return;
+    }
+
+    /* 3) FALLBACK GARANTIDO: o método nativo foi no-op neste ambiente.
+     * Navega a PRÓPRIA aba do navegador para o deep-link do recurso.
+     * Como é a MESMA aba, o sessionStorage (sessão do Sankhya) é preservado
+     * => NÃO pede login, e NÃO abre aba nova de navegador. É o único caminho
+     * que comprovadamente abre a tela aqui. */
+    try { console.log("[Alerta Férias] nativo no-op; usando deep-link na mesma aba."); } catch (e) {}
+    try {
+      var alvo = topo || window.top || window;
+      var base = alvo.location.pathname.replace(/\/[^\/]*$/, "");
+      if (!/\/mge$/.test(base)) base = base.replace(/\/mge\/.*$/, "/mge");
+      if (!/\/mge$/.test(base)) base = "/mge";
+      var destino = alvo.location.origin + base + "/system.jsp#app/" +
+                    alvo.btoa(REQ_RESOURCE_ID);
+      alvo.location.href = destino;
+    } catch (eNav) {
+      try { console.log("[Alerta Férias] falha no deep-link:", eNav); } catch (e) {}
+    }
+  }
+
+  function selecionarFaixa(faixa) {
+    faixaAtiva = (faixa === faixaAtiva) ? "todos" : faixa;
+    var cards = document.querySelectorAll(".resumo-card");
+    for (var i = 0; i < cards.length; i++) {
+      var ativo = cards[i].getAttribute("data-faixa") === faixaAtiva;
+      cards[i].classList.toggle("ativo", ativo);
+      cards[i].setAttribute("aria-pressed", ativo ? "true" : "false");
+    }
+    aplicarFaixa();
+  }
+
+  function aplicarFaixa() {
+    var arr = (faixaAtiva === "todos") ? ultimaConsulta
+      : ultimaConsulta.filter(function (l) { return faixaDe(l) === faixaAtiva; });
+    renderTabela(arr);
+  }
+
+  function ligarCliquesKpi() {
+    var cards = document.querySelectorAll(".resumo-card");
+    for (var i = 0; i < cards.length; i++) {
+      (function (card) {
+        var faixa = card.getAttribute("data-faixa");
+        card.addEventListener("click", function () { selecionarFaixa(faixa); });
+        card.addEventListener("keydown", function (ev) {
+          if (ev.key === "Enter" || ev.key === " " || ev.key === "Spacebar") { ev.preventDefault(); selecionarFaixa(faixa); }
+        });
+      })(cards[i]);
+    }
+  }
+
+  function preencherSelect(el, itens, rotuloTodos) {
+    var html = '<option value="">' + rotuloTodos + '</option>';
+    itens.forEach(function (it) { html += '<option value="' + escapeHtml(it.v) + '">' + escapeHtml(it.t) + '</option>'; });
+    el.innerHTML = html;
+  }
+
+  function carregarFiltros() {
+    dbQuery("SELECT CODEMP, RAZAOSOCIAL FROM TSIEMP WHERE CODEMP >= 20 ORDER BY CODEMP")
+      .then(function (rows) {
+        preencherSelect(elFEmp, rows.map(function (r) { return { v: r.CODEMP, t: r.CODEMP + " - " + (r.RAZAOSOCIAL || "") }; }), "Todas as empresas");
+      }).catch(function () { /* mantem "Todas as empresas" */ });
+  }
+
+  function buscar() {
+    elCorpo.innerHTML = '<tr><td colspan="6" class="estado-carregando">Carregando alertas...</td></tr>';
+    var f = {
+      dias: document.getElementById("f-dias").value,
+      codEmp: elFEmp.value,
+      func: document.getElementById("f-func").value.trim()
+    };
+    dbQuery(montarSqlPrincipal(f))
+      .then(function (rows) {
+        modoDemo = false;
+        ultimaConsulta = rows.map(mapear);
+        atualizarKpis(ultimaConsulta);
+        aplicarFaixa();
+      })
+      .catch(function (erro) {
+        if (String(erro.message).indexOf("Failed to fetch") >= 0 || String(erro.message).indexOf("NetworkError") >= 0) {
+          modoDemo = true;
+          ultimaConsulta = dadosDemo();
+          atualizarKpis(ultimaConsulta);
+          aplicarFaixa();
+          return;
+        }
+        elCorpo.innerHTML = '<tr><td colspan="6" class="estado-erro">Erro ao buscar dados: ' + escapeHtml(erro.message) + '</td></tr>';
+        atualizarKpis([]);
+      });
+  }
+
+  function csvSafeCell(v) {
+    var s = String(v == null ? "" : v);
+    if (/^[=+\-@]/.test(s)) s = "'" + s;   // previne CSV/formula injection
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+
+  function exportarCsv() {
+    var base = (faixaAtiva === "todos") ? ultimaConsulta
+      : ultimaConsulta.filter(function (l) { return faixaDe(l) === faixaAtiva; });
+    if (!base.length) return;
+    var cabecalho = ["Empresa","Funcionario","Departamento","Cargo","Lider","InicioAquisitivo","FimAquisitivo","DiasFerias","Abono","Faltas","DataVencimento","DiasParaVencer"];
+    var linhas = base.map(function (l) {
+      return [l.razaoSocial, l.nomeFunc, l.descrDep, l.descrCargo, l.lider,
+        fmtData(l.dtIniAqui), fmtData(l.dtFinAqui), l.numDiasFer, l.abonoPec, l.faltas,
+        fmtData(l.limGozo), l.diasParaVencer].map(csvSafeCell).join(";");
+    });
+    var csv = "﻿" + [cabecalho.join(";")].concat(linhas).join("\r\n");
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = "alerta_ferias_a_vencer.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function dadosDemo() {
+    return [
+      { codEmp: 20, razaoSocial: "Voke S.A.", nomeFunc: "ELAINE ROSA DE OLIVEIRA", codFunc: 3376, descrDep: "FIN - CONTROLADORIA FINANCEIRA", descrCargo: "-", lider: "-", dtIniAqui: "2024-06-16T00:00:00", dtFinAqui: "2025-06-15T00:00:00", numDiasFer: 30, abonoPec: 0, faltas: 0, limGozo: "2026-06-15T00:00:00", diasParaVencer: -27 },
+      { codEmp: 20, razaoSocial: "Voke S.A.", nomeFunc: "WINDERSON ROBERT FERRACIOLI", codFunc: 3530, descrDep: "TI - INFRAESTRUTURA", descrCargo: "Analista", lider: "FELLIPE PAZ DA MOTA", dtIniAqui: "2024-06-26T00:00:00", dtFinAqui: "2025-06-25T00:00:00", numDiasFer: 30, abonoPec: 10, faltas: 0, limGozo: "2026-06-26T00:00:00", diasParaVencer: -16 },
+      { codEmp: 20, razaoSocial: "Voke S.A.", nomeFunc: "ANA SOUZA", codFunc: 1042, descrDep: "Financeiro", descrCargo: "Analista", lider: "Carlos Lima", dtIniAqui: "2024-09-01T00:00:00", dtFinAqui: "2025-08-31T00:00:00", numDiasFer: 30, abonoPec: 0, faltas: 0, limGozo: "2026-07-27T00:00:00", diasParaVencer: 8 },
+      { codEmp: 21, razaoSocial: "Voke Serviços", nomeFunc: "BRUNO ALVES", codFunc: 1088, descrDep: "TI", descrCargo: "Desenvolvedor", lider: "Marina Reis", dtIniAqui: "2024-10-15T00:00:00", dtFinAqui: "2025-10-14T00:00:00", numDiasFer: 30, abonoPec: 0, faltas: 2, limGozo: "2026-09-09T00:00:00", diasParaVencer: 24 },
+      { codEmp: 21, razaoSocial: "Voke Serviços", nomeFunc: "CARLA NUNES", codFunc: 2210, descrDep: "RH", descrCargo: "Coordenadora", lider: "Paulo Dias", dtIniAqui: "2024-06-01T00:00:00", dtFinAqui: "2025-05-31T00:00:00", numDiasFer: 30, abonoPec: 0, faltas: 0, limGozo: "2026-10-20T00:00:00", diasParaVencer: 61 }
+    ];
+  }
+
+  elBtnBuscar.addEventListener("click", buscar);
+  elBtnExportar.addEventListener("click", exportarCsv);
+  ligarCliquesKpi();
+
+  // Contexto de gadget: nem sempre dispara DOMContentLoaded; inicializa aqui mesmo.
+  carregarFiltros();
+  buscar();
+</script>
+</body>
+</html>
