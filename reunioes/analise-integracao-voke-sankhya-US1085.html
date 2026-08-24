@@ -1,0 +1,531 @@
+<!doctype html><html lang='pt-BR'><head><meta charset='utf-8'><style>
+body{font-family:'Segoe UI',Arial,sans-serif;color:#1c2433;font-size:13px;line-height:1.55;max-width:920px;margin:24px auto;padding:0 18px;}
+h1{color:#10214A;font-size:23px;border-bottom:3px solid #E6007E;padding-bottom:8px;margin-bottom:4px;}
+h2{color:#10214A;font-size:17px;margin-top:26px;border-left:4px solid #E6007E;padding-left:9px;}
+h3{color:#334;font-size:14px;margin-top:16px;}
+table{border-collapse:collapse;width:100%;margin:10px 0 18px;font-size:11.5px;}
+th{background:#10214A;color:#fff;text-align:left;padding:6px 8px;}
+td{border:1px solid #d9dde5;padding:5px 8px;vertical-align:top;}
+tr:nth-child(even) td{background:#f5f7fa;}
+code{background:#eef1f6;color:#10214A;padding:1px 4px;border-radius:3px;font-family:Consolas,monospace;font-size:11px;}
+blockquote{background:#fff4f9;border-left:4px solid #E6007E;margin:12px 0;padding:9px 13px;color:#444;}
+a{color:#E6007E;} strong{color:#10214A;}
+.brand{color:#E6007E;font-weight:bold;letter-spacing:2px;text-transform:uppercase;font-size:11px;}
+@page{size:A4;margin:16mm 14mm;}
+</style></head><body><div class='brand'>Voke &middot; Integração Sankhya × VokeNext</div><h1>Análise de Integração VokeNext → Sankhya</h1>
+<h2>Documentação Funcional e Técnica — US 1085 "Consultar chamados do VokeNex via API para integração com o Sankhya"</h2>
+<blockquote>
+<p><strong>Escopo desta análise:</strong> baseada exclusivamente na US 1085 e suas Tasks, nas atas de reunião de
+levantamento, nos dois endpoints identificados e nos payloads/retornos efetivamente disponibilizados,
+além do histórico documentado da integração Sankhya × VokeNext (<code>voke.jar</code>, módulo 52).
+Tudo que não pôde ser comprovado está marcado como <strong>pendência</strong> ou <strong>"Necessário validação com negócio"</strong>.
+Nenhuma regra de negócio ou mapeamento Sankhya foi inventado.</p>
+</blockquote>
+<hr />
+<h2>1. Resumo Executivo</h2>
+<p><strong>Problema identificado.</strong> A US 1085 registra que hoje existem informações do pedido/chamado que
+não estão sendo integradas adequadamente para o Sankhya, e que não havia um endpoint confiável para
+<strong>consultar/listar</strong> os chamados do VokeNext filtrando pelos campos corretos. Na análise dos endpoints,
+confirmou-se que o <strong>Endpoint 1</strong> (<code>serviceRequestIncident.load</code>) <strong>não retorna dados de chamado</strong> —
+retorna o HTML da tela e o contexto de sessão. O <strong>Endpoint 2</strong> (<code>.../servicerequestincident/search</code>)
+<strong>retorna, sim, os dados do chamado em JSON estruturado</strong>.</p>
+<p><strong>Objetivo da integração.</strong> Disponibilizar ao Sankhya a consulta dos chamados do VokeNext (com filtro),
+para trazer as informações do pedido/chamado que hoje faltam — em especial o vínculo de chamado
+pai→filho e os dados do produto/pedido embutidos no chamado.</p>
+<p><strong>Benefícios esperados.</strong> Visibilidade do status real do chamado no VokeNext a partir do Sankhya;
+base para reduzir a lacuna de dados apontada na US; insumo para rastreabilidade do fluxo de ativação.
+<em>(A quantificação de ganho depende de validação de negócio — pendência.)</em></p>
+<p><strong>Impacto para Sankhya.</strong> Passa a ter uma fonte de consulta de chamados. O consumo desses dados por
+campo (gravação/atualização) depende de desenvolvimento e de validação de mapeamento — <strong>não</strong> está
+implementado hoje. <em>(Ver GAP Analysis.)</em></p>
+<p><strong>Impacto para VokeNext.</strong> Nenhuma alteração estrutural aparente é exigida do lado VokeNext: o
+Endpoint 2 já expõe os dados. Ponto de atenção: o Endpoint 2 fornecido aponta para <strong>ambiente de
+produção</strong>, enquanto o Endpoint 1 é homologação (ver Riscos).</p>
+<hr />
+<h2>2. Inventário Completo dos Campos</h2>
+<h3>2.1 Endpoint 1 — <code>serviceRequestIncident.load</code></h3>
+<p><code>POST https://vokenex-hom.4bizoxygen.com/4biz/serviceRequestIncident/serviceRequestIncident.load</code></p>
+<p><strong>Parâmetros de entrada (body):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Exemplo</th>
+<th>Descrição Funcional</th>
+<th>Obrigatório?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>object.id</code></td>
+<td>inteiro</td>
+<td><code>6908</code></td>
+<td>ID do chamado alvo (não filtrou o retorno no teste)</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>object.idContrato</code></td>
+<td>inteiro</td>
+<td><code>6</code></td>
+<td>Contrato</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>object.nomeServico</code></td>
+<td>string</td>
+<td><code>"Atendimento e Suporte Cliente Locação"</code></td>
+<td>Nome do serviço</td>
+<td>Necessário validação com negócio</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Retorno observado:</strong> documento HTML (tela AngularJS) + contexto de sessão. <strong>Não retornou o chamado.</strong>
+Campos estruturados presentes no retorno (contexto de sessão, não do chamado): <code>USER_LOGGED</code>
+(<code>idUsuario</code>, <code>login</code>, <code>email</code>, <code>grupos[]</code>, <code>colGrupos[]</code>, <code>contratos[]</code>, <code>colContratos[]</code>...) e
+<code>LOWCODE_CONFIG</code>. Documentação detalhada em <code>reunioes/endpoint-serviceRequestIncident-load.md</code>.</p>
+<blockquote>
+<p><strong>Conclusão do Endpoint 1:</strong> não é fonte de dados de chamado. Serve a tela. Descartado como fonte
+de integração de dados.</p>
+</blockquote>
+<h3>2.2 Endpoint 2 — <code>servicerequestincident/search</code></h3>
+<p><code>https://vokenex.4bizoxygen.com/4biz/webmvc/servicerequestincident/search</code> — <strong>retorna array JSON de chamados.</strong></p>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Exemplo</th>
+<th>Descrição Funcional</th>
+<th>Obrigatório?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>idSolicitacaoServico</code></td>
+<td>inteiro</td>
+<td><code>1168</code></td>
+<td>Identificador do chamado/solicitação de serviço</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>idStatus</code></td>
+<td>inteiro</td>
+<td><code>1</code></td>
+<td>Código do status do chamado</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>string</td>
+<td><code>"In Progress"</code></td>
+<td>Descrição textual do status</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>idGrupoAtual</code></td>
+<td>inteiro</td>
+<td><code>630</code></td>
+<td>ID do grupo atual responsável</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>nomeGrupoAtual</code></td>
+<td>string</td>
+<td><code>"Monitoramento de Chamado Pai"</code></td>
+<td>Nome do grupo atual</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>siglaGrupo</code></td>
+<td>string</td>
+<td><code>"MONI689"</code></td>
+<td>Sigla do grupo atual</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>idTarefa</code></td>
+<td>inteiro</td>
+<td><code>9264</code></td>
+<td>ID da tarefa atual do fluxo</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>tarefa</code></td>
+<td>string</td>
+<td><code>"Aguardando encerramento do chamado filho"</code></td>
+<td>Nome da tarefa atual</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>tipoServico</code></td>
+<td>string</td>
+<td><code>"N"</code></td>
+<td>Tipo de serviço (código)</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>nomeServico</code></td>
+<td>string</td>
+<td><code>"Ativação"</code></td>
+<td>Nome do serviço</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>nomeServicoRelacionado</code></td>
+<td>string</td>
+<td><code>"Solicitar Atendimento"</code></td>
+<td>Serviço relacionado</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>nomeTipoDemandaServico</code></td>
+<td>string</td>
+<td><code>"Requisição"</code></td>
+<td>Tipo da demanda</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>descricao</code></td>
+<td>string</td>
+<td><code>"Cod. Produto: 30645 - Descricao: DESKTOP DELL OPTIPLEX 7020... - Quantidade: 1 - Tipo Faturamento: Entrega - Imagem: 14.07-Padrão - Valor unitário: R$ 105,00"</code></td>
+<td>Texto livre com dados do produto/pedido concatenados</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>contrato</code></td>
+<td>string</td>
+<td><code>"PAGUE MENOS"</code></td>
+<td>Nome do contrato</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>idContrato</code></td>
+<td>inteiro</td>
+<td><code>6</code></td>
+<td>ID do contrato</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>localidade</code></td>
+<td>string</td>
+<td><code>"Padrão"</code></td>
+<td>Localidade</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>idUnidade</code></td>
+<td>inteiro</td>
+<td><code>1</code></td>
+<td>ID da unidade</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>nomeUnidadeSolicitante</code></td>
+<td>string</td>
+<td><code>"Integração"</code></td>
+<td>Unidade do solicitante</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>nomeSolicitante</code></td>
+<td>string</td>
+<td><code>"Usuario Integração"</code></td>
+<td>Nome do solicitante</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>emailcontato</code></td>
+<td>string</td>
+<td><code>"usuario.integracao@run2biz.com"</code></td>
+<td>E-mail de contato</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>telefonecontato</code></td>
+<td>string</td>
+<td><code>" "</code></td>
+<td>Telefone de contato (vazio no exemplo)</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>origem</code></td>
+<td>string</td>
+<td><code>"Portal"</code></td>
+<td>Origem do chamado</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>idOrigem</code></td>
+<td>inteiro</td>
+<td><code>1</code></td>
+<td>Código da origem</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>impacto</code></td>
+<td>string</td>
+<td><code>"A"</code></td>
+<td>Impacto (código)</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>urgencia</code></td>
+<td>string</td>
+<td><code>"A"</code></td>
+<td>Urgência (código)</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>sla</code></td>
+<td>string</td>
+<td><code>"To be defined"</code></td>
+<td>SLA</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>dataHoraInicio</code></td>
+<td>datetime</td>
+<td><code>"2026-07-15 16:58:52 PM BRT"</code></td>
+<td>Data/hora de início</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>dataHoraSolicitacao</code></td>
+<td>datetime</td>
+<td><code>"2026-07-15 16:58:52 PM BRT"</code></td>
+<td>Data/hora da solicitação</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>solicitanteVip</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>Indicador de solicitante VIP</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>enderecoUnidade.idEndereco</code></td>
+<td>inteiro</td>
+<td><code>6</code></td>
+<td>ID do endereço da unidade</td>
+<td>Necessário validação com negócio</td>
+</tr>
+<tr>
+<td><code>enderecoUnidade.enderecoStr</code></td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Endereço formatado (vazio no exemplo)</td>
+<td>Necessário validação com negócio</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Nota factual:</strong> o exemplo retornado é um <strong>chamado pai</strong> (grupo <code>MONI689</code> "Monitoramento de Chamado
+Pai", tarefa "Aguardando encerramento do chamado filho"), do serviço "Ativação", contrato PAGUE MENOS.
+Isso é coerente com o cenário pai→filho (904→905→906) discutido na reunião. <strong>Não há</strong>, neste payload,
+campo explícito de chamado-pai / chamado-filho — a relação não está evidente nos dados disponibilizados
+(<strong>pendência</strong>).</p>
+</blockquote>
+<hr />
+<h2>3. Consolidação dos Dados Disponíveis</h2>
+<ul>
+<li><strong>Campos exclusivos do Endpoint 1:</strong> apenas contexto de sessão (<code>USER_LOGGED</code>, <code>LOWCODE_CONFIG</code>) —
+  <strong>nenhum dado de chamado</strong>. Não há campo de chamado exclusivo aproveitável.</li>
+<li><strong>Campos exclusivos do Endpoint 2:</strong> todos os campos de chamado listados em 2.2 (o Endpoint 1 não
+  retorna nenhum deles).</li>
+<li><strong>Campos existentes em ambos:</strong> conceitualmente <code>idContrato</code> aparece nos dois (no E1 como parâmetro de
+  entrada; no E2 como dado retornado). Não há sobreposição real de <strong>dados de saída</strong> entre os endpoints.</li>
+<li><strong>Possíveis redundâncias (dentro do Endpoint 2):</strong> <code>dataHoraInicio</code> = <code>dataHoraSolicitacao</code> (mesmo valor
+  no exemplo); pares código/descrição redundantes: <code>idStatus</code>/<code>status</code>, <code>idGrupoAtual</code>/<code>nomeGrupoAtual</code>/<code>siglaGrupo</code>,
+  <code>idTarefa</code>/<code>tarefa</code>, <code>idOrigem</code>/<code>origem</code>, <code>idContrato</code>/<code>contrato</code>, <code>idUnidade</code>/<code>nomeUnidadeSolicitante</code>.</li>
+<li><strong>Possíveis conflitos de informação:</strong> <strong>ambiente divergente</strong> — E1 = homologação (<code>vokenex-hom</code>),
+  E2 = produção (<code>vokenex</code>). Consultar os dois como "mesma base" produziria dados de ambientes diferentes
+  (risco alto). Além disso, dados do produto/pedido só existem como <strong>texto concatenado</strong> em <code>descricao</code>,
+  sem campos discretos — conflito potencial de parsing.</li>
+</ul>
+<hr />
+<h2>4. Mapeamento VokeNext → Sankhya</h2>
+<blockquote>
+<p>Campos Sankhya citados abaixo são <strong>exclusivamente</strong> os documentados no histórico da integração
+(<code>AD_TGFINTE</code>, <code>AD_TGFIINTE</code>, <code>TCSCON</code>, <code>TGFCAB</code>, <code>TGFITE</code>). Onde não há campo Sankhya documentado
+equivalente, registra-se como pendência. O mapeamento <strong>não</strong> foi validado com negócio.</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Campo VokeNext</th>
+<th>Campo Sankhya (documentado)</th>
+<th>Origem Endpoint</th>
+<th>Situação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>idSolicitacaoServico</code></td>
+<td><code>AD_TGFINTE.IDCHAMADOITSM</code></td>
+<td>E2</td>
+<td>Já Integrado (na escrita Sankhya→Voke) / consulta reversa: Não Integrado</td>
+</tr>
+<tr>
+<td><code>idContrato</code> / <code>contrato</code></td>
+<td><code>TCSCON.NUMCONTRATO</code> (contrato)</td>
+<td>E2</td>
+<td>Necessário Validação de Negócio</td>
+</tr>
+<tr>
+<td><code>descricao</code> (Cod. Produto, Qtd, Valor unitário)</td>
+<td><code>TGFITE.CODPROD</code> / <code>TGFITE.QTDNEG</code> / <code>TGFITE.VLRUNIT</code> (itens do pedido)</td>
+<td>E2</td>
+<td>Necessário Desenvolvimento (parsing de string) + Validação de Negócio</td>
+</tr>
+<tr>
+<td><code>idStatus</code> / <code>status</code> / <code>tarefa</code></td>
+<td><code>AD_TGFINTE.STATUS</code> / <code>STATUSPICKING</code></td>
+<td>E2</td>
+<td>Necessário Validação de Negócio (semântica difere do STATUSPICKING interno)</td>
+</tr>
+<tr>
+<td><code>nomeServico</code> ("Ativação")</td>
+<td>Fluxo de ativação (<code>AD_PLANROL</code> / pedido)</td>
+<td>E2</td>
+<td>Necessário Validação de Negócio</td>
+</tr>
+<tr>
+<td><code>siglaGrupo</code> / <code>nomeGrupoAtual</code></td>
+<td><em>(sem campo Sankhya documentado)</em></td>
+<td>E2</td>
+<td>Campo Não Encontrado</td>
+</tr>
+<tr>
+<td><code>nomeSolicitante</code> / <code>emailcontato</code> / <code>telefonecontato</code></td>
+<td><em>(sem campo Sankhya documentado)</em></td>
+<td>E2</td>
+<td>Necessário Validação de Negócio</td>
+</tr>
+<tr>
+<td><code>impacto</code> / <code>urgencia</code> / <code>sla</code></td>
+<td><em>(sem campo Sankhya documentado)</em></td>
+<td>E2</td>
+<td>Necessário Validação de Negócio</td>
+</tr>
+<tr>
+<td><code>idUnidade</code> / <code>nomeUnidadeSolicitante</code> / <code>localidade</code></td>
+<td><em>(sem campo Sankhya documentado)</em></td>
+<td>E2</td>
+<td>Necessário Validação de Negócio</td>
+</tr>
+<tr>
+<td><code>dataHoraInicio</code> / <code>dataHoraSolicitacao</code></td>
+<td><code>AD_TGFINTE.DHINTEGRACAO</code> (aproximação)</td>
+<td>E2</td>
+<td>Necessário Validação de Negócio</td>
+</tr>
+<tr>
+<td>relação chamado pai↔filho</td>
+<td><em>(não há campo no payload nem campo Sankhya documentado)</em></td>
+<td>—</td>
+<td>Campo Não Encontrado</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>5. GAP Analysis</h2>
+<p><strong>Informações que o VokeNext possui e o Sankhya ainda não recebe (via estes endpoints):</strong>
+status/tarefa atual do chamado, grupo atual, dados do solicitante/contato, impacto/urgência/SLA e o
+texto de produto em <code>descricao</code>. Hoje a integração documentada é <strong>Sankhya→Voke</strong>; o retorno desses
+dados <strong>para</strong> o Sankhya não está implementado.</p>
+<p><strong>Informações necessárias para atender a US que ainda não foram encontradas:</strong>
+- Um <strong>campo explícito de vínculo pai→filho</strong> — o payload não traz <code>idChamadoPai</code>/<code>idChamadoFilho</code>
+  (a US pede o fluxo 904→905→906). <strong>Pendência.</strong>
+- O <strong>campo de filtro</strong> exato aceito pelo Endpoint 2 (parâmetros de query da busca) — não foi
+  disponibilizado o request, apenas o retorno. <strong>Pendência.</strong>
+- <strong>Autenticação</strong> do Endpoint 2 (headers/token) — não disponibilizada. <strong>Pendência.</strong></p>
+<p><strong>Informações existentes mas sem definição funcional:</strong>
+<code>tipoServico</code> ("N"), <code>idOrigem</code>, códigos de <code>impacto</code>/<code>urgencia</code> ("A"), <code>idTarefa</code>, <code>idStatus</code> —
+significados não documentados. <strong>Necessário validação com negócio.</strong></p>
+<p><strong>Dependências de negócio para conclusão:</strong>
+definição de quais campos do chamado devem, de fato, ser gravados/atualizados no Sankhya e em qual
+tabela; regra de parsing do <code>descricao</code>; e confirmação do ambiente (produção vs homologação).</p>
+<hr />
+<h2>6. Proposta de Solução</h2>
+<p><em>(Com base exclusivamente nas evidências.)</em></p>
+<ul>
+<li><strong>Melhor fonte de dados:</strong> <strong>Endpoint 2</strong> (<code>servicerequestincident/search</code>) — é o único que retorna
+  os dados do chamado em JSON estruturado.</li>
+<li><strong>Endpoint complementar:</strong> <strong>Endpoint 1</strong> — <strong>não</strong> é fonte de dados; deve ser descartado para
+  integração. Serve apenas como carga de tela.</li>
+<li><strong>Dados suficientes para atender a US:</strong> o Endpoint 2 fornece status, grupo, tarefa, contrato,
+  solicitante e a descrição do produto — cobre boa parte da "dor" de visibilidade. <strong>Insuficiente</strong>
+  para o vínculo pai→filho (não há campo) e para acionar filtros (request não disponibilizado).</li>
+<li><strong>Dados que ainda precisam ser buscados:</strong> parâmetros de filtro do Endpoint 2, campo de vínculo
+  pai→filho, autenticação, e a semântica dos códigos.</li>
+<li><strong>Riscos</strong> (ver seção 8/Pontos de Atenção): ambiente de produção no Endpoint 2; dados de produto
+  apenas como texto concatenado; ausência de contrato/paginação documentados.</li>
+</ul>
+<hr />
+<h2>7. Especificação Funcional para Projetos</h2>
+<p><strong>Contexto.</strong> Evolução da integração Sankhya × VokeNext (fluxo de ativação, cliente Pague Menos),
+para trazer ao Sankhya informações do chamado hoje ausentes (US 1085).</p>
+<p><strong>Cenário Atual.</strong> Integração documentada é unidirecional Sankhya→Voke. A consulta de chamados
+carecia de endpoint confiável; o <code>serviceRequestIncident.load</code> não retorna dados.</p>
+<p><strong>Cenário Proposto.</strong> Consumir o Endpoint 2 (<code>search</code>) para obter os chamados em JSON e disponibilizar
+os campos relevantes no Sankhya (consulta e, mediante validação, gravação). Campos e tabela de destino
+a definir com negócio.</p>
+<p><strong>Dados Necessários.</strong> Campos do Endpoint 2 (seção 2.2); regra de extração do <code>descricao</code>; definição
+do filtro de consulta; autenticação.</p>
+<p><strong>Fluxo de Integração (proposto, macro).</strong>
+1. Autenticar no VokeNext → 2. Chamar <code>search</code> com filtro (contrato/grupo/status — a confirmar) →
+3. Receber array de chamados → 4. Transformar/validar → 5. Persistir/atualizar no Sankhya (destino a definir).</p>
+<p><strong>Dependências.</strong> Definição de negócio dos campos-alvo; parâmetros de filtro do endpoint; ambiente
+correto (homologação); autenticação.</p>
+<p><strong>Riscos.</strong> Endpoint 2 em produção; parsing frágil de <code>descricao</code>; ausência de vínculo pai→filho.</p>
+<p><strong>Pendências.</strong> Ver seção 9.</p>
+<p><strong>Critérios de Aceite</strong> (herdados/derivados da US 1085):
+1. Endpoint de consulta identificado e documentado em ambiente de teste (sem uso de produção).
+2. Campo de filtro que segmenta corretamente os chamados definido e validado.
+3. Fluxo pai→filho compreendido e documentado.
+4. Consulta retornando os chamados esperados.
+5. Levantamento validado com a área de negócios.</p>
+<hr />
+<h2>8. Especificação Técnica para Desenvolvimento</h2>
+<p><strong>Endpoint Consumido.</strong> <code>https://vokenex.4bizoxygen.com/4biz/webmvc/servicerequestincident/search</code>
+(<strong>produção</strong> — validar equivalente em homologação antes de desenvolver).</p>
+<p><strong>Método HTTP.</strong> Não disponibilizado explicitamente; o retorno é um array JSON. <strong>Pendência</strong> — validar
+(GET com query params ou POST com body de filtro).</p>
+<p><strong>Estrutura de Resposta.</strong> Array de objetos de chamado. Campos em 2.2. Objeto aninhado <code>enderecoUnidade</code>.</p>
+<p><strong>Campos Utilizados.</strong> A definir com negócio; candidatos diretos: <code>idSolicitacaoServico</code>, <code>idStatus</code>/<code>status</code>,
+<code>tarefa</code>, <code>idContrato</code>/<code>contrato</code>, <code>descricao</code>, <code>nomeServico</code>, <code>dataHoraInicio</code>.</p>
+<p><strong>Transformações Necessárias.</strong>
+- Parsing do <code>descricao</code> para extrair <code>Cod. Produto</code>, <code>Descricao</code>, <code>Quantidade</code>, <code>Tipo Faturamento</code>,
+  <code>Imagem</code>, <code>Valor unitário</code> (formato <code>R$ 105,00</code> → decimal). <strong>Regra a validar.</strong>
+- Conversão de data <code>"YYYY-MM-DD HH:mm:ss PM BRT"</code> para o formato Sankhya.</p>
+<p><strong>Regras de Integração.</strong> Não definidas — dependem do mapeamento validado (seção 4). <strong>Não inventar.</strong></p>
+<p><strong>Tratamento de Erros.</strong> Alinhar ao padrão existente do <code>voke.jar</code> (<code>IntegracaoLog</code>: <code>erroPedidos</code>/
+<code>erroEtapas</code>/<code>erroNotas</code>/<code>erroCMDB</code>), incluindo retentativa (hoje ausente no processo — melhoria conhecida).</p>
+<p><strong>Logs Recomendados.</strong> Registrar chamada, filtro usado, quantidade de chamados retornados, e falhas de
+parsing do <code>descricao</code>.</p>
+<p><strong>Pontos de Atenção.</strong>
+1. <strong>Ambiente:</strong> Endpoint 2 aponta para <strong>produção</strong> — a reunião alertou explicitamente para não usar
+   produção em teste. Confirmar host de homologação.
+2. <strong><code>descricao</code> como texto:</strong> dados de produto não são campos discretos — parsing frágil.
+3. <strong>Sem paginação/contrato documentados</strong> no Endpoint 2 — validar volume e filtros.
+4. <strong>Autenticação não fornecida</strong> para o Endpoint 2.
+5. <strong>Vínculo pai→filho ausente</strong> no payload.</p>
+<hr />
+<h2>9. Perguntas em Aberto (a responder para concluir a solução)</h2>
+<ol>
+<li>Qual o <strong>host de homologação</strong> equivalente ao Endpoint 2 (o fornecido é produção)?</li>
+<li>Qual o <strong>método HTTP</strong> e os <strong>parâmetros de filtro</strong> aceitos pelo <code>search</code> (contrato? grupo? status? número?)?</li>
+<li>Como se <strong>autentica</strong> no Endpoint 2 (token/headers)?</li>
+<li>Existe campo/endpoint que exponha explicitamente o <strong>vínculo pai→filho</strong> do chamado?</li>
+<li>Quais campos do chamado devem ser <strong>efetivamente gravados/atualizados no Sankhya</strong>, e em qual <strong>tabela de destino</strong>?</li>
+<li>Qual a <strong>regra oficial de parsing</strong> do campo <code>descricao</code> (produto, quantidade, valor, imagem)?</li>
+<li>Qual o significado dos <strong>códigos</strong> <code>tipoServico</code> ("N"), <code>idStatus</code>, <code>impacto</code>/<code>urgencia</code> ("A"), <code>idOrigem</code>, <code>idTarefa</code>?</li>
+<li>A consulta deve ser <strong>pontual</strong> (por chamado) ou <strong>em lote</strong> (listagem com filtro), e com qual periodicidade?</li>
+<li>Há <strong>paginação</strong> no retorno do <code>search</code> para grandes volumes?</li>
+<li>O consumo é <strong>somente leitura</strong> (visibilidade) ou também <strong>escrita</strong> de volta no fluxo?</li>
+</ol>
+<hr />
+<p><em>Documento produzido a partir das evidências disponíveis no projeto. Itens marcados como pendência ou
+"Necessário validação com negócio" não devem ser tratados como definidos.</em></p></body></html>
