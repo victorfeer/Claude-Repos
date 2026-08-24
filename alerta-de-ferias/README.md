@@ -8,6 +8,17 @@ Esta pasta reúne a **documentação consolidada** e o **painel HTML5** finais.
 O código-fonte validado em produção vive no ambiente/Azure DevOps do time — aqui
 fica a documentação de referência e o gadget entregável.
 
+## 🚀 Vou subir para produção — comece aqui
+
+**[`docs/runbook-producao.md`](docs/runbook-producao.md)** — checklist completo do
+que subir e do que alterar, com os bloqueadores, as consultas de verificação, o
+passo a passo, a validação pós-implantação e o rollback.
+Versão para anexar na GMUD: [`gmud/Runbook-Producao-Alerta-Ferias.docx`](gmud/Runbook-Producao-Alerta-Ferias.docx).
+
+> **Os 4 bloqueadores:** `MODO_TESTE = true` (exige recompilar), os 8 `CODUSU` do
+> sininho são de homologação, `CODCON`/`CODSMTP` idem, e a tabela
+> `AD_FERIAS_NOTIFICADO` precisa existir antes da primeira execução.
+
 ## ⚠️ Errata — artefato implantado
 
 A documentação inicial foi escrita antes do acesso ao artefato real
