@@ -1169,6 +1169,80 @@ children.push(callout("Reconciliação com os documentos anexados",
   "O README.md e o CLAUDE.md fornecidos listam três pendências. Desta análise resulta que a de nº 2 (mecanismo de e-mail) já foi RESOLVIDA por meio da fila nativa TMDFMG, com evidência de envio bem-sucedido registrada na homologação. As de nº 1 e nº 3 permanecem abertas. Foram identificadas seis pendências adicionais não listadas naqueles documentos, das quais duas (itens 4 e 5) são igualmente bloqueantes para produção.",
   AMBER));
 
+children.push(new Paragraph({ children: [new PageBreak()] }));
+children.push(h1("16. Errata — correções após análise do artefato implantado"));
+children.push(callout("Origem desta seção",
+  "As seções anteriores foram elaboradas antes do acesso ao artefato implantado. A decompilação do arquivo alertaferias.jar (projeto Eclipse AlertaFeriasHml, classes compiladas em 10/07/2026) permitiu confrontar a documentação com o que efetivamente está em execução. Onde houver divergência, PREVALECE esta seção.",
+  NAVY));
+children.push(spacer(140));
+children.push(h2("16.1. Correções de fato"));
+children.push(dataTable(
+  ["Item", "Documentado anteriormente", "Artefato implantado"],
+  [
+    ["Assinatura da procedure", "6 parâmetros, incluindo P_CODGRUPO", "5 parâmetros. P_CODGRUPO NÃO existe. A chamada real é STP_NOTIFICA_SISTEMA_CUSTOM(titulo, descricao, CODUSU, remetente, importancia)."],
+    ["Destinatário do sininho", "Grupo do DP (CODGRUPO_DP = 123, placeholder)", "8 usuários individuais (CODUSU): 1716, 1945, 1946, 1947, 2365, 3379, 3387, 3388. A rotina chama a procedure uma vez por usuário."],
+    ["Limite de gozo", "DTFINAQUI + 330 (aproximação)", "FER.DTLIMGOZFER, coluna calculada pelo próprio ERP, com fallback ADD_MONTHS(DTFINAQUI, 12) quando nula."],
+    ["Fonte de dados da rotina", "Consome a view VW_ALERTA_FERIAS_A_VENCER", "NÃO usa a view. Possui SQL próprio embutido, com regras diferentes."],
+    ["Chave de AD_FERIAS_NOTIFICADO", "(CODEMP, CODFUNC, DTINIAQUI)", "(CODEMP, CODFUNC, SEQUENCIA) — a SEQUENCIA do período em TFPFER."],
+    ["Interface de agendamento", "PENDENTE — não documentada publicamente", "RESOLVIDO: org.cuckoo.core.ScheduledAction, método onTime(ScheduledActionContext)."],
+    ["Obtenção da conexão", "PENDENTE — nome JNDI do datasource", "RESOLVIDO: obtida do runtime do agendador por reflexão (getEnvironment e getConnectionHolder não são públicos). Não é JNDI."],
+    ["Acesso a banco", "NativeSql com arquivos .sql externos", "JDBC puro (PreparedStatement/CallableStatement), com SQL embutido no código."],
+    ["Modos de execução", "DIFF diário", "DIFF e COMPLETO. COMPLETO roda no último dia útil do mês e NÃO marca como notificado."]
+  ], [22, 34, 44]
+));
+
+children.push(spacer(140));
+children.push(h2("16.2. Impedimento para produção — MODO_TESTE"));
+children.push(callout("O artefato analisado não é capaz de enviar e-mail a destinatário real",
+  "No jar de homologação a constante MODO_TESTE está definida como true. Por ser constante de tempo de compilação, o compilador ELIMINA o ramo de produção do bytecode: o redirecionamento para o endereço de teste é incondicional. Nenhuma alteração de configuração, parâmetro ou dado altera esse comportamento. Para produção é obrigatório alterar a constante para false e RECOMPILAR o artefato.",
+  RED));
+
+children.push(spacer(140));
+children.push(h2("16.3. Divergência entre a view e a rotina"));
+children.push(p([
+  "A seção 4.1 registrava como risco o fato de a regra existir em dois lugares. A análise do artefato confirma que ",
+  strong("os dois lados já divergiram"), " — não se trata mais de risco potencial, e sim de divergência efetiva:"
+]));
+children.push(dataTable(
+  ["Aspecto", "View (painel)", "Rotina Java (e-mail e sino)"],
+  [
+    ["Limite de gozo", "DTFINAQUI + 330", "FER.DTLIMGOZFER"],
+    ["Janela", "0 a 90 dias", "<= 30 dias, incluindo vencidos"],
+    ["Critério preventivo", "Não implementado", "1 período aberto e 2o ciclo entre -30 e +30 dias"],
+    ["Período não gozado", "DTSAIDA / DTPREVISTA / ATUALFERGOZ", "PERQUITADO"],
+    ["Filtro de empresa", "CODEMP >= 20", "Não possui"],
+    ["Filtro de vínculo", "VINCULO NOT IN (80, 90)", "Não possui"],
+    ["Requisição pendente", "STATUS = 1", "STATUS <> 2"],
+    ["Deduplicação", "Informativa (COUNT OVER)", "ROW_NUMBER por DTINIAQUI; mantém o período mais antigo"]
+  ], [22, 36, 42]
+));
+children.push(spacer(120));
+children.push(p([
+  strong("Consequência prática: "),
+  "painel e e-mail podem listar pessoas diferentes, e a data de vencimento exibida ao DP pode não coincidir com a do e-mail recebido."
+]));
+children.push(spacer(100));
+children.push(callout("Recomendação",
+  "Unificar em uma única fonte. O caminho de menor risco é a view passar a refletir a regra da rotina — que é a validada em homologação e a que efetivamente dispara as notificações — e a rotina passar a consumir a view. Enquanto isso não ocorrer, tratar a rotina como fonte da verdade sobre quem foi notificado, e o painel como visão exploratória mais ampla.",
+  NAVY));
+
+children.push(spacer(140));
+children.push(h2("16.4. Situação das pendências após a análise"));
+children.push(dataTable(
+  ["Pendência", "Situação"],
+  [
+    ["Assinatura da interface ScheduledAction", "RESOLVIDA pelo artefato"],
+    ["Mecanismo de envio de e-mail", "RESOLVIDA — fila nativa TMDFMG"],
+    ["Nome JNDI do datasource", "RESOLVIDA — não se aplica; conexão vem do runtime do agendador"],
+    ["CODGRUPO do DP", "NÃO SE APLICA — o destino são CODUSU individuais"],
+    ["DDL de AD_FERIAS_NOTIFICADO", "RESOLVIDA — chave (CODEMP, CODFUNC, SEQUENCIA)"],
+    ["MODO_TESTE ligado no artefato", "ABERTA — bloqueia produção; exige recompilação"],
+    ["Divergência entre view e rotina", "ABERTA — risco funcional"],
+    ["Destinatários hardcoded no código", "ABERTA — melhoria; migrar para AD_FERIAS_CONFIG"],
+    ["Último dia útil não considera feriados", "ABERTA — em mês encerrado em feriado, o modo COMPLETO não roda"]
+  ], [46, 54]
+));
+
 children.push(new Paragraph({ spacing: { before: 300 }, children: [
   new TextRun({ text: "Documento gerado para passagem de conhecimento e anexo de GMUD. Elaborado a partir da documentação consolidada do projeto e dos arquivos README.md e CLAUDE.md fornecidos. Os artefatos-fonte (.java, .sql, atas, requisitos e evidências) não foram disponibilizados para esta análise; os trechos de código apresentados provêm da documentação consolidada e devem ser conferidos contra os arquivos definitivos antes da implantação.",
     italics: true, color: GRAY, size: 17, font: "Arial" })] }));
@@ -1207,7 +1281,7 @@ const doc = new Document({
 });
 
 Packer.toBuffer(doc).then(buf => {
-  const out = "/tmp/claude-0/-home-user-Claude-Repos/228027ca-009e-574e-b468-a52395ef698f/scratchpad/Documentacao-Alerta-Ferias-a-Vencer.docx";
+  const out = "/home/user/Claude-Repos/alerta-de-ferias/gmud/Documentacao-Alerta-Ferias-a-Vencer.docx";
   fs.writeFileSync(out, buf);
   console.log("OK gerado:", out, buf.length, "bytes");
 });

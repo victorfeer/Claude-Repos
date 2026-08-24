@@ -8,6 +8,28 @@ Esta pasta reúne a **documentação consolidada** e o **painel HTML5** finais.
 O código-fonte validado em produção vive no ambiente/Azure DevOps do time — aqui
 fica a documentação de referência e o gadget entregável.
 
+## ⚠️ Errata — artefato implantado
+
+A documentação inicial foi escrita antes do acesso ao artefato real
+(`alertaferias.jar`, projeto `AlertaFeriasHml`, classes de **10/07/2026**).
+A decompilação corrigiu vários pontos:
+
+| Documentado antes | Realidade |
+|---|---|
+| Procedure com 6 parâmetros (`P_CODGRUPO`) | **5 parâmetros** — `P_CODGRUPO` não existe |
+| Sino vai para um grupo | **8 `CODUSU`**: 1716, 1945, 1946, 1947, 2365, 3379, 3387, 3388 |
+| Limite de gozo = `DTFINAQUI + 330` | **`FER.DTLIMGOZFER`** (fallback `ADD_MONTHS(DTFINAQUI,12)`) |
+| Job consome a view | **Não usa a view** — SQL próprio, regras diferentes |
+| Chave da `AD_FERIAS_NOTIFICADO` | `(CODEMP, CODFUNC, **SEQUENCIA**)` |
+| Interface Cuckoo e JNDI pendentes | **Resolvidas** — ver `docs/divergencia-view-x-job.md` |
+
+**Bloqueio para produção:** o artefato tem `MODO_TESTE = true`. Por ser constante
+de compilação, o ramo de produção é eliminado do bytecode — todo e-mail vai para
+o endereço de teste, incondicionalmente. Ir para produção exige **recompilar**.
+
+Detalhes: [`docs/divergencia-view-x-job.md`](docs/divergencia-view-x-job.md),
+scripts corrigidos em [`sql/`](sql) e código real em [`fonte-java/`](fonte-java).
+
 ## Conteúdo
 
 | Arquivo | O que é |

@@ -1,5 +1,25 @@
 # Tela HTML5, implantação e homologação
 
+> ## ⚠️ ERRATA — corrigido após análise do artefato real
+>
+> Este documento foi escrito **antes** do acesso ao artefato implantado
+> (`alertaferias.jar`, projeto `AlertaFeriasHml`, classes de **10/07/2026**).
+> A decompilação do jar provou que alguns pontos abaixo **não correspondem** ao
+> que está em produção. As correções:
+>
+> | Afirmação neste documento | Realidade no artefato |
+> |---|---|
+> | Procedure com **6 parâmetros** (`P_CODGRUPO`) | **5 parâmetros** — `P_CODGRUPO` **não existe** |
+> | Sino vai para um **grupo** (`CODGRUPO_DP = 123`) | Vai para **8 `CODUSU` individuais**: 1716, 1945, 1946, 1947, 2365, 3379, 3387, 3388 |
+> | Limite de gozo = `DTFINAQUI + 330` | **`FER.DTLIMGOZFER`**, com fallback `ADD_MONTHS(DTFINAQUI, 12)` |
+> | Job consome a view `VW_ALERTA_FERIAS_A_VENCER` | O job **não usa a view** — tem SQL próprio, com regras diferentes |
+> | Chave da `AD_FERIAS_NOTIFICADO` | `(CODEMP, CODFUNC, **SEQUENCIA**)` |
+> | Pendências bloqueantes: interface Cuckoo e datasource JNDI | **Resolvidas**: `org.cuckoo.core.ScheduledAction` / `onTime(ScheduledActionContext)`; conexão vem do runtime do agendador **por reflexão** |
+>
+> **Fontes autoritativas:** [`divergencia-view-x-job.md`](divergencia-view-x-job.md),
+> os scripts em [`../sql/`](../sql) e o código em [`../fonte-java/`](../fonte-java).
+
+
 ## 1. Tela HTML5 — "Alerta de férias a vencer"
 
 > **Código real disponível:** `assets/painel-index.html` (na pasta desta skill) é uma versão real da tela. Use-a como ponto de partida para gerar/ajustar o painel em vez de reescrever do zero.
