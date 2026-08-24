@@ -1,0 +1,306 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<style>
+body{font-family:'Segoe UI',Arial,sans-serif;color:#1c2433;font-size:14px;line-height:1.5;max-width:900px;margin:24px auto;padding:0 16px;}
+h1{color:#10214A;font-size:24px;border-bottom:3px solid #E6007E;padding-bottom:8px;}
+h2{color:#10214A;font-size:18px;margin-top:26px;border-left:4px solid #E6007E;padding-left:8px;}
+h3,h4{color:#334;font-size:15px;}
+table{border-collapse:collapse;width:100%;margin:10px 0 18px;}
+th{background:#10214A;color:#fff;text-align:left;padding:7px 10px;font-size:13px;}
+td{border:1px solid #d9dde5;padding:6px 10px;vertical-align:top;}
+tr:nth-child(even) td{background:#f5f7fa;}
+code{background:#eef1f6;color:#10214A;padding:1px 5px;border-radius:3px;font-family:Consolas,monospace;font-size:12px;}
+blockquote{background:#fff4f9;border-left:4px solid #E6007E;margin:12px 0;padding:10px 14px;color:#444;}
+a{color:#E6007E;}
+</style></head><body><h1>Endpoint <code>serviceRequestIncident.load</code> — parâmetros e retorno observados</h1>
+<blockquote>
+<p>Documentado a partir da requisição enviada e da resposta observada (Postman: <code>200 OK</code>, ~22,69 KB, 204 ms).
+<strong>Conclusão principal:</strong> este endpoint <strong>carrega a tela</strong> (HTML AngularJS do ITSM <code>/4biz</code>); ele <strong>não</strong> retorna
+os dados do chamado em formato estruturado. Os campos "retornados" abaixo são o <em>bootstrap da sessão</em>, não o ticket 6908.
+Credenciais de acesso omitidas por segurança.</p>
+</blockquote>
+<h2>Requisição</h2>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Valor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Método</td>
+<td><code>POST</code></td>
+</tr>
+<tr>
+<td>URL</td>
+<td><code>https://vokenex-hom.4bizoxygen.com/4biz/serviceRequestIncident/serviceRequestIncident.load</code></td>
+</tr>
+<tr>
+<td>API</td>
+<td>CITSmart / ITSM (<code>/4biz</code> webmvc) — <strong>fora</strong> do Swagger da API Low Code (<code>/lowcode</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3>Headers necessários</h3>
+<ul>
+<li><code>Accept: application/json</code></li>
+<li><code>Content-Type: application/json</code></li>
+<li>Cabeçalhos de autenticação da sessão (omitidos)</li>
+</ul>
+<h3>Parâmetros do corpo (body JSON)</h3>
+<p>Todos dentro do objeto raiz <code>object</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Parâmetro</th>
+<th>Tipo</th>
+<th>Exemplo</th>
+<th>Observação</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>object.id</code></td>
+<td>inteiro</td>
+<td><code>6908</code></td>
+<td>ID do chamado alvo</td>
+</tr>
+<tr>
+<td><code>object.idContrato</code></td>
+<td>inteiro</td>
+<td><code>6</code></td>
+<td>Contrato (6 = "PAGUE MENOS")</td>
+</tr>
+<tr>
+<td><code>object.nomeServico</code></td>
+<td>string</td>
+<td><code>"Atendimento e Suporte Cliente Locação"</code></td>
+<td>Nome do serviço</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>Observação: no comportamento observado, esses parâmetros <strong>não filtraram o retorno</strong> — a resposta
+não trouxe o chamado 6908, e sim a tela + contexto do usuário logado. Ou seja, para consumo de dados
+eles são efetivamente ignorados por este endpoint.</p>
+</blockquote>
+<h2>Resposta observada (<code>200 OK</code>)</h2>
+<p>Corpo = documento <strong>HTML</strong> da aplicação (<code>ng-app="serviceRequestIncident"</code>). Os únicos dados estruturados
+embutidos são o contexto de sessão (<code>USER_LOGGED</code>) e a config Low Code (<code>LOWCODE_CONFIG</code>).</p>
+<h3>Campos retornados em <code>USER_LOGGED</code></h3>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Exemplo observado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>idUsuario</code></td>
+<td>inteiro</td>
+<td><code>3072</code></td>
+</tr>
+<tr>
+<td><code>idUnidade</code></td>
+<td>inteiro</td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>idEmpregado</code></td>
+<td>inteiro</td>
+<td><code>3072</code></td>
+</tr>
+<tr>
+<td><code>idPerfilAcessoUsuario</code></td>
+<td>inteiro[]</td>
+<td><code>[46, 47]</code></td>
+</tr>
+<tr>
+<td><code>idEmpresa</code></td>
+<td>inteiro</td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>login</code></td>
+<td>string</td>
+<td><code>admin.vokenex-hom</code></td>
+</tr>
+<tr>
+<td><code>nomeUsuario</code></td>
+<td>string</td>
+<td><code>admin vokenex-hom</code></td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>string</td>
+<td><code>A</code></td>
+</tr>
+<tr>
+<td><code>email</code></td>
+<td>string</td>
+<td><code>admin.vokenex-hom@run2biz.com</code></td>
+</tr>
+<tr>
+<td><code>grupos</code></td>
+<td>string[]</td>
+<td>siglas dos grupos (ex.: <code>1001784</code>, <code>ACIO184</code>, <code>MONI689</code>...)</td>
+</tr>
+<tr>
+<td><code>colGrupos</code></td>
+<td>objeto[]</td>
+<td>ver estrutura abaixo</td>
+</tr>
+<tr>
+<td><code>contratos</code></td>
+<td>inteiro[]</td>
+<td><code>[2, 3, 6, 7]</code></td>
+</tr>
+<tr>
+<td><code>colContratos</code></td>
+<td>objeto[]</td>
+<td>ver estrutura abaixo</td>
+</tr>
+<tr>
+<td><code>fromToken</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>passwordChanged</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+</tr>
+</tbody>
+</table>
+<h4>Estrutura de <code>colGrupos[]</code></h4>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Exemplo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>idGrupo</code></td>
+<td>inteiro</td>
+<td><code>637</code></td>
+</tr>
+<tr>
+<td><code>nome</code></td>
+<td>string</td>
+<td><code>Acompanhamento de Chamados Pai</code></td>
+</tr>
+<tr>
+<td><code>sigla</code></td>
+<td>string</td>
+<td><code>ACOM166</code></td>
+</tr>
+<tr>
+<td><code>serviceDesk</code></td>
+<td>string (S/N)</td>
+<td><code>S</code></td>
+</tr>
+</tbody>
+</table>
+<h4>Estrutura de <code>colContratos[]</code></h4>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Tipo</th>
+<th>Exemplo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>idContrato</code></td>
+<td>inteiro</td>
+<td><code>6</code></td>
+</tr>
+<tr>
+<td><code>idCliente</code></td>
+<td>inteiro</td>
+<td><code>6</code></td>
+</tr>
+<tr>
+<td><code>numero</code></td>
+<td>string</td>
+<td><code>PAGUE MENOS</code></td>
+</tr>
+<tr>
+<td><code>dataContrato</code></td>
+<td>data</td>
+<td><code>Dec 3, 2025</code></td>
+</tr>
+<tr>
+<td><code>dataFimContrato</code></td>
+<td>data</td>
+<td><code>Dec 3, 2026</code></td>
+</tr>
+<tr>
+<td><code>tipo</code></td>
+<td>string</td>
+<td><code>C</code></td>
+</tr>
+<tr>
+<td><code>situacao</code></td>
+<td>string</td>
+<td><code>A</code></td>
+</tr>
+<tr>
+<td><code>idMoeda</code></td>
+<td>inteiro</td>
+<td><code>1</code></td>
+</tr>
+<tr>
+<td><code>idFornecedor</code></td>
+<td>inteiro</td>
+<td><code>3</code></td>
+</tr>
+</tbody>
+</table>
+<h3>Campos retornados em <code>LOWCODE_CONFIG</code></h3>
+<table>
+<thead>
+<tr>
+<th>Campo</th>
+<th>Valor observado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>username</code></td>
+<td><code>admin.vokenex-hom</code></td>
+</tr>
+<tr>
+<td><code>authenticated</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>enabled</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>url</code> / <code>context</code></td>
+<td><code>/lowcode</code></td>
+</tr>
+<tr>
+<td><code>external</code></td>
+<td><code>true</code></td>
+</tr>
+</tbody>
+</table>
+<h3>Outras variáveis globais no retorno</h3>
+<p><code>URL_SISTEMA=/4biz/</code>, <code>LOCALE_SISTEMA=en</code>, <code>VERSAO_SISTEMA=1.9.24.2</code>, <code>HYP_BASENAME=/workflow</code>,
+<code>HYP_KANBAN_INT_ENABLED=true</code>, <code>_TIME_ZONE=America/Sao_Paulo</code>.</p>
+<h2>Resumo</h2>
+<ul>
+<li><strong>Recebe:</strong> <code>object.{id, idContrato, nomeServico}</code> + cabeçalhos de autenticação da sessão.</li>
+<li><strong>Retorna:</strong> HTML da tela + contexto de sessão (<code>USER_LOGGED</code>, <code>LOWCODE_CONFIG</code>). <strong>Não retorna o chamado.</strong></li>
+<li><strong>Para obter o chamado em formato estruturado:</strong> usar a busca interna da tela (DevTools → Network ao clicar "Pesquisar")
+  ou a API Low Code <code>GET /lowcode/data/{project}/{business-object}</code> com filtros.</li>
+</ul></body></html>
